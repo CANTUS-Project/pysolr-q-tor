@@ -1,12 +1,13 @@
-======
-pysolr
-======
+============
+pysolr-q-tor
+============
 
-``pysolr`` is a lightweight Python wrapper for `Apache Solr`_. It provides an
-interface that queries the server and returns results based on the query.
+``pysolr-q-tor`` is a modified version of ``pysolr`` that only runs queries (and cannot add or
+delete records, for example) and uses the Tornado Web framework. ``pysolr`` is a lightweight Python
+wrapper for `Apache Solr`_. It provides an interface that queries the server and returns results
+based on the query.
 
 .. _`Apache Solr`: http://lucene.apache.org/solr/
-
 
 Status
 ======
