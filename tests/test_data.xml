@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<add>
+    <doc>
+        <field name="id">doc_1</field>
+        <field name="title">Example doc 1</field>
+        <field name="price">12.59</field>
+        <field name="popularity">10</field>
+    </doc>
+    <doc>
+        <field name="id">doc_2</field>
+        <field name="title">Another example ☃ doc 2</field>
+        <field name="price">13.69</field>
+        <field name="popularity">7</field>
+    </doc>
+    <doc>
+        <field name="id">doc_3</field>
+        <field name="title">Another thing</field>
+        <field name="price">2.35</field>
+        <field name="popularity">8</field>
+    </doc>
+    <doc>
+        <field name="id">doc_4</field>
+        <field name="title">doc rock</field>
+        <field name="price">99.99</field>
+        <field name="popularity">10</field>
+    </doc>
+    <doc>
+        <field name="id">doc_5</field>
+        <field name="title">Boring</field>
+        <field name="price">1.12</field>
+        <field name="popularity">2</field>
+    </doc>
+</add>

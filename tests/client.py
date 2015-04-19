@@ -2,6 +2,7 @@
 from __future__ import unicode_literals
 
 import datetime
+import subprocess
 
 from pysolr import (Solr, Results, SolrError, unescape_html, safe_urlencode,
                     force_unicode, force_bytes, sanitize, json, ET, IS_PY3,
@@ -116,9 +117,10 @@ class ResultsTestCase(unittest.TestCase):
 class SolrTestCase(unittest.TestCase):
     def setUp(self):
         super(SolrTestCase, self).setUp()
-        self.default_solr = Solr('http://localhost:8983/solr/core0')
+        self.server_url = 'http://localhost:8983/solr/core0'
+        self.default_solr = Solr(self.server_url)
         # Short timeouts.
-        self.solr = Solr('http://localhost:8983/solr/core0', timeout=2)
+        self.solr = Solr(self.server_url, timeout=2)
         self.docs = [
             {
                 'id': 'doc_1',
@@ -155,10 +157,12 @@ class SolrTestCase(unittest.TestCase):
         # Clear it.
         self.solr.delete(q='*:*')
 
-        # Index our docs. Yes, this leans on functionality we're going to test
-        # later & if it's broken, everything will catastrophically fail.
-        # Such is life.
-        self.solr.add(self.docs)
+        # Index our docs.
+        try:
+            # TODO: make a direct Solr request
+            subprocess.check_call(['tests/post.sh', 'tests/test_data.xml'], stdout=subprocess.DEVNULL)
+        except subprocess.CalledProcessError as cpe:
+            self.fail(cpe)
 
     def tearDown(self):
         self.solr.delete(q='*:*')
