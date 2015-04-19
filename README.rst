@@ -7,13 +7,18 @@ supports queries (and cannot add or delete records, for example). ``pysolr`` is 
 wrapper for `Apache Solr`_. It provides an interface that queries the server and returns results
 based on the query.
 
+.. warning:: We make no promises that this works for anyone other than us at Cantus-Project. We are
+    not expecting to publish this on PyPI, and we do not promise to maintain releases or keep it in
+    step with upstream ``pysolr``.
+
+    However, if you're interested in collaborating on that maintenance, we might be up for it!
+
 .. _`Apache Solr`: http://lucene.apache.org/solr/
 
 Status
 ======
 
-.. image:: https://secure.travis-ci.org/toastdriven/pysolr.png
-   :target: https://secure.travis-ci.org/toastdriven/pysolr
+Nothing on Travis or Coveralls yet.
 
 
 Features
@@ -28,6 +33,20 @@ Features
 
 Requirements
 ============
+
+For ``pysolr-tornado`` we only, and always, test with the following software.
+
+ * Solr 4.10
+ * CPython 3.4
+ * Tornado 4.1
+ * lxml 3.4
+ * simplejson 3.6
+
+
+Upstream Requirements
+=====================
+
+Requirements for ``pysolr``.
 
 * Python 2.6 - 3.3
 * Requests 2.0+
