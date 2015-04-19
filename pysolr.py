@@ -892,46 +892,47 @@ class Solr(object):
             :metadata:
                         key:value pairs of text strings
         """
-        if not hasattr(file_obj, "name"):
-            raise ValueError("extract() requires file-like objects which have a defined name property")
+        raise NotImplementedError('extract() has not been ported to Tornado yet')
+        #if not hasattr(file_obj, "name"):
+            #raise ValueError("extract() requires file-like objects which have a defined name property")
 
-        params = {
-            "extractOnly": "true" if extractOnly else "false",
-            "lowernames": "true",
-            "wt": "json",
-        }
-        params.update(kwargs)
+        #params = {
+            #"extractOnly": "true" if extractOnly else "false",
+            #"lowernames": "true",
+            #"wt": "json",
+        #}
+        #params.update(kwargs)
 
-        try:
-            # We'll provide the file using its true name as Tika may use that
-            # as a file type hint:
-            resp = self._send_request('post', 'update/extract',
-                                      body=params,
-                                      files={'file': (file_obj.name, file_obj)})
-        except (IOError, SolrError) as err:
-            self.log.error("Failed to extract document metadata: %s", err,
-                           exc_info=True)
-            raise
+        #try:
+            ## We'll provide the file using its true name as Tika may use that
+            ## as a file type hint:
+            #resp = self._send_request('post', 'update/extract',
+                                      #body=params,
+                                      #files={'file': (file_obj.name, file_obj)})
+        #except (IOError, SolrError) as err:
+            #self.log.error("Failed to extract document metadata: %s", err,
+                           #exc_info=True)
+            #raise
 
-        try:
-            data = json.loads(resp)
-        except ValueError as err:
-            self.log.error("Failed to load JSON response: %s", err,
-                           exc_info=True)
-            raise
+        #try:
+            #data = json.loads(resp)
+        #except ValueError as err:
+            #self.log.error("Failed to load JSON response: %s", err,
+                           #exc_info=True)
+            #raise
 
-        data['contents'] = data.pop(file_obj.name, None)
-        data['metadata'] = metadata = {}
+        #data['contents'] = data.pop(file_obj.name, None)
+        #data['metadata'] = metadata = {}
 
-        raw_metadata = data.pop("%s_metadata" % file_obj.name, None)
+        #raw_metadata = data.pop("%s_metadata" % file_obj.name, None)
 
-        if raw_metadata:
-            # The raw format is somewhat annoying: it's a flat list of
-            # alternating keys and value lists
-            while raw_metadata:
-                metadata[raw_metadata.pop()] = raw_metadata.pop()
+        #if raw_metadata:
+            ## The raw format is somewhat annoying: it's a flat list of
+            ## alternating keys and value lists
+            #while raw_metadata:
+                #metadata[raw_metadata.pop()] = raw_metadata.pop()
 
-        return data
+        #return data
 
 
 class SolrCoreAdmin(object):

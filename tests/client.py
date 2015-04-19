@@ -480,25 +480,26 @@ class SolrTestCase(unittest.TestCase):
             </html>
         """)
         fake_f.name = "test.html"
-        extracted = self.solr.extract(fake_f)
+        self.assertRaises(NotImplementedError, self.solr.extract, fake_f)
+        #extracted = self.solr.extract(fake_f)
 
-        # Verify documented response structure:
-        self.assertIn('contents', extracted)
-        self.assertIn('metadata', extracted)
+        ## Verify documented response structure:
+        #self.assertIn('contents', extracted)
+        #self.assertIn('metadata', extracted)
 
-        self.assertIn('foobar', extracted['contents'])
+        #self.assertIn('foobar', extracted['contents'])
 
-        m = extracted['metadata']
+        #m = extracted['metadata']
 
-        self.assertEqual([fake_f.name], m['stream_name'])
+        #self.assertEqual([fake_f.name], m['stream_name'])
 
-        self.assertIn('haystack-test', m, "HTML metadata should have been extracted!")
-        self.assertEqual(['test 1234'], m['haystack-test'])
+        #self.assertIn('haystack-test', m, "HTML metadata should have been extracted!")
+        #self.assertEqual(['test 1234'], m['haystack-test'])
 
-        # Note the underhanded use of a double snowman to verify both that Tika
-        # correctly decoded entities and that our UTF-8 characters survived the
-        # round-trip:
-        self.assertEqual(['Test Title ☃☃'], m['title'])
+        ## Note the underhanded use of a double snowman to verify both that Tika
+        ## correctly decoded entities and that our UTF-8 characters survived the
+        ## round-trip:
+        #self.assertEqual(['Test Title ☃☃'], m['title'])
 
     def test_full_url(self):
         self.solr.url = 'http://localhost:8983/solr/core0'
