@@ -1,9 +1,9 @@
-============
-pysolr-q-tor
-============
+==============
+pysolr-tornado
+==============
 
-``pysolr-q-tor`` is a modified version of ``pysolr`` that only runs queries (and cannot add or
-delete records, for example) and uses the Tornado Web framework. ``pysolr`` is a lightweight Python
+``pysolr-tornado`` is a version of ``pysolr`` modified to use Tornado. At the moment, it only
+supports queries (and cannot add or delete records, for example). ``pysolr`` is a lightweight Python
 wrapper for `Apache Solr`_. It provides an interface that queries the server and returns results
 based on the query.
 
@@ -103,7 +103,7 @@ Basic usage looks like:
 LICENSE
 =======
 
-``pysolr`` is licensed under the New BSD license.
+``pysolr-tornado`` is licensed under the New BSD license.
 
 
 Running Tests
