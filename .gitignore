@@ -8,3 +8,4 @@ env3
 pysolr.egg-info/
 .tox
 solr*.tgz
+test-solr.std???.log
