@@ -2,7 +2,7 @@
 
 set -e
 
-SOLR_VERSION=4.7.2
+SOLR_VERSION=4.10.4
 
 if [ ! -f solr-${SOLR_VERSION}.tgz ]; then
     python get-solr-download-url.py $SOLR_VERSION | xargs curl -O
