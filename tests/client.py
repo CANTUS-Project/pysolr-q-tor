@@ -237,39 +237,16 @@ class SolrTestCase(unittest.TestCase):
         resp_body = self.solr._update(xml_body, softCommit=True)
         self.assertTrue('<int name="status">0</int>' in resp_body)
 
-    def test__extract_error(self):
-        class RubbishResponse(object):
-            def __init__(self, content, headers=None):
-                if isinstance(content, bytes):
-                    content = content.decode('utf-8')
-                self.content = content
-                self.headers = headers
+    def test__extract_error_1(self):
+        resp = httpclient.HTTPResponse(httpclient.HTTPRequest('http://cantusdatabase.org/'),
+                                       500,
+                                       reason='Someone Spilled Soup on the Server')
+        self.assertEqual(self.solr._extract_error(resp), "[Reason: Someone Spilled Soup on the Server]")
 
-                if self.headers is None:
-                    self.headers = {}
-
-            def json(self):
-                return json.loads(self.content)
-
-        # Just the reason.
-        resp_1 = RubbishResponse("We don't care.", {'reason': 'Something went wrong.'})
-        self.assertEqual(self.solr._extract_error(resp_1), "[Reason: Something went wrong.]")
-
-        # Empty reason.
-        resp_2 = RubbishResponse("We don't care.", {'reason': None})
-        self.assertEqual(self.solr._extract_error(resp_2), "[Reason: None]\nWe don't care.")
-
-        # No reason. Time to scrape.
-        resp_3 = RubbishResponse('<html><body><pre>Something is broke.</pre></body></html>', {'server': 'jetty'})
-        self.assertEqual(self.solr._extract_error(resp_3), "[Reason: Something is broke.]")
-
-        # No reason. JSON response.
-        resp_4 = RubbishResponse(b'\n {"error": {"msg": "It happens"}}', {'server': 'tomcat'})
-        self.assertEqual(self.solr._extract_error(resp_4), "[Reason: It happens]")
-
-        # No reason. Weird JSON response.
-        resp_5 = RubbishResponse(b'{"kinda": "weird"}', {'server': 'jetty'})
-        self.assertEqual(self.solr._extract_error(resp_5), '[Reason: None]\n{"kinda": "weird"}')
+    def test__extract_error_2(self):
+        resp = httpclient.HTTPResponse(httpclient.HTTPRequest('http://cantusdatabase.org/'),
+                                       500)
+        self.assertEqual(self.solr._extract_error(resp), "[Reason: Internal Server Error]")
 
     def test__scrape_response(self):
         # Jetty.

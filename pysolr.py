@@ -405,27 +405,7 @@ class Solr(object):
         """
         Extract the actual error message from a solr response.
         """
-        reason = resp.headers.get('reason', None)
-        full_response = None
-
-        if reason is None:
-            try:
-                # if response is in json format
-                reason = resp.json()['error']['msg']
-            except KeyError:
-                # if json response has unexpected structure
-                full_response = resp.content
-            except ValueError:
-                # otherwise we assume it's html
-                reason, full_html = self._scrape_response(resp.headers, resp.content)
-                full_response = unescape_html(full_html)
-
-        msg = "[Reason: %s]" % reason
-
-        if reason is None:
-            msg += "\n%s" % full_response
-
-        return msg
+        return '[Reason: {}]'.format(resp.reason)
 
     def _scrape_response(self, headers, response):
         """
