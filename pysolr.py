@@ -8,9 +8,12 @@ import datetime
 import logging
 import re
 import requests
+import socket
 import time
 import types
 import ast
+
+from tornado import httpclient
 
 try:
     # Prefer lxml, if installed.
@@ -271,7 +274,7 @@ class Solr(object):
 
     def _send_request(self, method, path='', body=None, headers=None, files=None):
         url = self._create_full_url(path)
-        method = method.lower()
+        method = method.upper()
         log_body = body
 
         if headers is None:
@@ -286,42 +289,51 @@ class Solr(object):
                        url, method, log_body[:10])
         start_time = time.time()
 
-        try:
-            requests_method = getattr(self.session, method, 'get')
-        except AttributeError as err:
-            raise SolrError("Unable to send HTTP method '{0}.".format(method))
+        our_client = httpclient.HTTPClient()
+
+        if files is not None:
+            raise NotImplementedError('The "files" parameter in _send_request() does not work in Tornado yet')
 
         try:
+            # actual Tornado request
             # Everything except the body can be Unicode. The body must be
             # encoded to bytes to work properly on Py3.
             bytes_body = body
-
             if bytes_body is not None:
                 bytes_body = force_bytes(body)
 
-            resp = requests_method(url, data=bytes_body, headers=headers, files=files,
-                                   timeout=self.timeout)
-        except requests.exceptions.Timeout as err:
-            error_message = "Connection to server '%s' timed out: %s"
-            self.log.error(error_message, url, err, exc_info=True)
-            raise SolrError(error_message % (url, err))
-        except requests.exceptions.ConnectionError as err:
-            error_message = "Failed to connect to server at '%s', are you sure that URL is correct? Checking it in a browser might help: %s"
-            params = (url, err)
-            self.log.error(error_message, *params, exc_info=True)
-            raise SolrError(error_message % params)
+            # prepare the request
+            request = httpclient.HTTPRequest(url, method=method, headers=headers, body=bytes_body, request_timeout=self.timeout)
+
+            # run the request
+            resp = our_client.fetch(request)
+        except UnicodeError as err:
+            # when the URL is empty or too long or something
+            pass
+        except socket.gaierror as err:
+            # DNS doesn't resolve or simlar
+            pass
+        except KeyError as err:
+            # unknown HTTP method
+            raise SolrError('Unable to send HTTP method "{}"'.format(method))
+        except ConnectionRefusedError as err:
+            # could be various things
+            raise SolrError('Connection refused to {}'.format(url))
+        else:
+            # did the connection otherwise fail?
+            if int(resp.code) != 200:
+                error_message = self._extract_error(resp)
+                self.log.error(error_message, extra={'data': {'headers': resp.headers,
+                                                              'response': resp.body}})
+                raise SolrError(error_message)
+        finally:
+            our_client.close()
 
         end_time = time.time()
         self.log.info("Finished '%s' (%s) with body '%s' in %0.3f seconds.",
                       url, method, log_body[:10], end_time - start_time)
 
-        if int(resp.status_code) != 200:
-            error_message = self._extract_error(resp)
-            self.log.error(error_message, extra={'data': {'headers': resp.headers,
-                                                          'response': resp.content}})
-            raise SolrError(error_message)
-
-        return force_unicode(resp.content)
+        return force_unicode(resp.body)
 
     def _select(self, params):
         # specify json encoding of results

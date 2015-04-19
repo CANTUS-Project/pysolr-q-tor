@@ -4,6 +4,8 @@ from __future__ import unicode_literals
 import datetime
 import subprocess
 
+from tornado import httpclient
+
 from pysolr import (Solr, Results, SolrError, unescape_html, safe_urlencode,
                     force_unicode, force_bytes, sanitize, json, ET, IS_PY3,
                     clean_xml_string)
