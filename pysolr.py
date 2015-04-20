@@ -63,7 +63,7 @@ def get_version():
     return "%s.%s.%s" % __version__[:3]
 
 
-DATETIME_REGEX = re.compile('^(?P<year>\d{4})-(?P<month>\d{2})-(?P<day>\d{2})T(?P<hour>\d{2}):(?P<minute>\d{2}):(?P<second>\d{2})(\.\d+)?Z$')
+DATETIME_REGEX = re.compile(r'^(?P<year>\d{4})-(?P<month>\d{2})-(?P<day>\d{2})T(?P<hour>\d{2}):(?P<minute>\d{2}):(?P<second>\d{2})(\.\d+)?Z$')
 
 
 class NullHandler(logging.Handler):
@@ -156,7 +156,7 @@ def unescape_html(text):
             except KeyError:
                 pass
         return text # leave as is
-    return re.sub("&#?\w+;", fixup, text)
+    return re.sub(r"&#?\w+;", fixup, text)
 
 
 def safe_urlencode(params, doseq=0):
@@ -307,16 +307,16 @@ class Solr(object):
 
             # run the request
             resp = our_client.fetch(request)
-        except UnicodeError as err:
+        except UnicodeError:
             # when the URL is empty or too long or something
-            pass
-        except socket.gaierror as err:
+            raise SolrError('UnicodeError with URL: {}'.format(url))
+        except socket.gaierror:
             # DNS doesn't resolve or simlar
-            pass
-        except KeyError as err:
+            raise SolrError('Low-level error connecting to {}'.format(url))
+        except KeyError:
             # unknown HTTP method
             raise SolrError('Unable to send HTTP method "{}"'.format(method))
-        except ConnectionRefusedError as err:
+        except ConnectionRefusedError:
             # could be various things
             raise SolrError('Connection refused to {}'.format(url))
         else:
