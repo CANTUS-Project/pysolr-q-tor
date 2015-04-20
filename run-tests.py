@@ -6,7 +6,7 @@ import subprocess
 import sys
 import time
 
-import requests
+from tornado import httpclient
 
 
 def start_solr():
@@ -17,11 +17,13 @@ def start_solr():
     solr_retries = 0
 
     while True:
+        my_client = httpclient.HTTPClient()
         try:
-            r = requests.get("http://localhost:8983/solr/core0/select/?q=startup")
-            status_code = r.status_code
-        except requests.RequestException:
+            status_code = my_client.fetch("http://localhost:8983/solr/core0/select/?q=startup").code
+        except:
             status_code = 0
+        finally:
+            my_client.close()
 
         if status_code == 200:
             break

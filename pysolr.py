@@ -7,10 +7,8 @@ import os
 import datetime
 import logging
 import re
-import requests
 import socket
 import time
-import types
 import ast
 
 from tornado import httpclient
@@ -259,8 +257,6 @@ class Solr(object):
         self.url = url
         self.timeout = timeout
         self.log = self._get_log()
-        self.session = requests.Session()
-        self.session.stream = False
 
     def _get_log(self):
         return LOG
@@ -294,6 +290,7 @@ class Solr(object):
         if files is not None:
             raise NotImplementedError('The "files" parameter in _send_request() does not work in Tornado yet')
 
+        # TODO: test all the "except" clauses
         try:
             # actual Tornado request
             # Everything except the body can be Unicode. The body must be
@@ -955,9 +952,18 @@ class SolrCoreAdmin(object):
         super(SolrCoreAdmin, self).__init__(*args, **kwargs)
         self.url = url
 
-    def _get_url(self, url, params={}, headers={}):
-        resp = requests.get(url, data=safe_urlencode(params), headers=headers)
-        return force_unicode(resp.content)
+    def _get_url(self, url, params=None, headers=None):
+        params = {} if params is None else params
+        headers = {} if headers is None else headers
+        my_client = httpclient.HTTPClient()
+        try:
+            resp = my_client.fetch(httpclient.HTTPRequest(url,
+                                                          headers=headers,
+                                                          body=safe_urlencode(params),
+                                                          allow_nonstandard_methods=True))
+        finally:
+            my_client.close()
+        return force_unicode(resp.body)
 
     def status(self, core=None):
         """http://wiki.apache.org/solr/CoreAdmin#head-9be76f5a459882c5c093a7a1456e98bea7723953"""
