@@ -2,10 +2,12 @@
 pysolr-tornado
 ==============
 
-``pysolr-tornado`` is a version of ``pysolr`` modified to use Tornado. At the moment, it only
-supports queries (and cannot add or delete records, for example). ``pysolr`` is a lightweight Python
-wrapper for `Apache Solr`_. It provides an interface that queries the server and returns results
-based on the query.
+``pysolr-tornado`` is a version of ``pysolr`` modified to use Tornado. At the moment, it supports
+the same functionality as ``pysolr`` with one exception: the Solr.extract() method. That means you
+cannot yet add binary-format documents.
+
+``pysolr`` is a lightweight Python wrapper for `Apache Solr`_. It provides an interface that
+queries the server and returns results based on the query.
 
 .. warning:: We make no promises that this works for anyone other than us at Cantus-Project. We are
     not expecting to publish this on PyPI, and we do not promise to maintain releases or keep it in

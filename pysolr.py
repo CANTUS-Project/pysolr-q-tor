@@ -870,6 +870,8 @@ class Solr(object):
 
     def extract(self, file_obj, extractOnly=True, **kwargs):
         """
+        .. warning:: This method is not implemented yet in ``pysolr-tornado``.
+
         POSTs a file to the Solr ExtractingRequestHandler so rich content can
         be processed using Apache Tika. See the Solr wiki for details:
 
