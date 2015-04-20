@@ -8,6 +8,9 @@ import time
 
 from tornado import httpclient
 
+RETRY_EVERY = 1  # seconds
+RETRY_DURATION = 60  # seconds
+
 
 def start_solr():
     solr_proc = subprocess.Popen("./start-test-solr.sh",
@@ -15,6 +18,7 @@ def start_solr():
                                  stderr=open("test-solr.stderr.log", "wb"))
 
     solr_retries = 0
+    print('Waiting for Solr to start...')
 
     while True:
         my_client = httpclient.HTTPClient()
@@ -27,13 +31,14 @@ def start_solr():
 
         if status_code == 200:
             break
-        elif solr_retries < 60:
+        elif (solr_retries * RETRY_EVERY) < RETRY_DURATION:
             solr_retries += 1
-            print("Waiting 10 seconds for Solr to start (retry #%d)" % solr_retries, file=sys.stderr)
-            time.sleep(10)
+            time.sleep(RETRY_EVERY)
         else:
-            print("Solr took too long to start (#%d retries)" % solr_retries, file=sys.stderr)
+            print('Solr took too long to start ({} retries in {} seconds)'.format(solr_retries, RETRY_DURATION), file=sys.stderr)
             sys.exit(1)
+
+    print('Solr started! (waited {} seconds)'.format(solr_retries * RETRY_EVERY))
 
     return solr_proc
 
