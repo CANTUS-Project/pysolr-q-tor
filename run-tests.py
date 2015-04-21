@@ -55,6 +55,8 @@ def main():
 
     try:
         subprocess.check_call(cmd)
+    except subprocess.CalledProcessError:
+        raise SystemExit(1)
     finally:
         solr_proc.terminate()
         solr_proc.wait()

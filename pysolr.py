@@ -11,7 +11,8 @@ import socket
 import time
 import ast
 
-from tornado import httpclient
+from tornado import gen, httpclient
+from tornado import ioloop as ioloop_module
 
 try:
     # Prefer lxml, if installed.
@@ -245,6 +246,9 @@ class Solr(object):
     Optionally accepts ``timeout`` for wait seconds until giving up on a
     request. Default is ``60`` seconds.
 
+    Optionally accepts ``ioloop`` used for the AsyncHTTPClient. **But you should really include it
+    because I don't know if it will work without being given that... TBD.**
+
     Usage::
 
         solr = pysolr.Solr('http://localhost:8983/solr')
@@ -252,11 +256,13 @@ class Solr(object):
         solr = pysolr.Solr('http://localhost:8983/solr', timeout=10)
 
     """
-    def __init__(self, url, decoder=None, timeout=60):
+    def __init__(self, url, decoder=None, timeout=None, ioloop=None):
         self.decoder = decoder or json.JSONDecoder()
         self.url = url
-        self.timeout = timeout
+        self.timeout = timeout or 60
         self.log = self._get_log()
+        self._ioloop = ioloop or ioloop_module.IOLoop.instance()
+        self._client = httpclient.AsyncHTTPClient(self._ioloop)
 
     def _get_log(self):
         return LOG
@@ -268,6 +274,7 @@ class Solr(object):
         # No path? No problem.
         return self.url
 
+    @gen.coroutine
     def _send_request(self, method, path='', body=None, headers=None, files=None):
         url = self._create_full_url(path)
         method = method.upper()
@@ -285,8 +292,6 @@ class Solr(object):
                        url, method, log_body[:10])
         start_time = time.time()
 
-        our_client = httpclient.HTTPClient()
-
         if files is not None:
             raise NotImplementedError('The "files" parameter in _send_request() does not work in Tornado yet')
 
@@ -300,10 +305,11 @@ class Solr(object):
                 bytes_body = force_bytes(body)
 
             # prepare the request
-            request = httpclient.HTTPRequest(url, method=method, headers=headers, body=bytes_body, request_timeout=self.timeout)
+            request = httpclient.HTTPRequest(url, method=method, headers=headers, body=bytes_body,
+                                             request_timeout=self.timeout)
 
             # run the request
-            resp = our_client.fetch(request)
+            resp = yield self._client.fetch(request)
         except UnicodeError:
             # when the URL is empty or too long or something
             raise SolrError('UnicodeError with URL: {}'.format(url))
@@ -323,8 +329,6 @@ class Solr(object):
                 self.log.error(error_message, extra={'data': {'headers': resp.headers,
                                                               'response': resp.body}})
                 raise SolrError(error_message)
-        finally:
-            our_client.close()
 
         end_time = time.time()
         self.log.info("Finished '%s' (%s) with body '%s' in %0.3f seconds.",
@@ -332,6 +336,7 @@ class Solr(object):
 
         return force_unicode(resp.body)
 
+    @gen.coroutine
     def _select(self, params):
         # specify json encoding of results
         params['wt'] = 'json'
@@ -340,27 +345,30 @@ class Solr(object):
         if len(params_encoded) < 1024:
             # Typical case.
             path = 'select/?%s' % params_encoded
-            return self._send_request('get', path)
+            return (yield self._send_request('get', path))
         else:
             # Handles very long queries by submitting as a POST.
             path = 'select/'
             headers = {
                 'Content-type': 'application/x-www-form-urlencoded; charset=utf-8',
             }
-            return self._send_request('post', path, body=params_encoded, headers=headers)
+            return (yield self._send_request('post', path, body=params_encoded, headers=headers))
 
+    @gen.coroutine
     def _mlt(self, params):
         # specify json encoding of results
         params['wt'] = 'json'
         path = 'mlt/?%s' % safe_urlencode(params, True)
-        return self._send_request('get', path)
+        return (yield self._send_request('get', path))
 
+    @gen.coroutine
     def _suggest_terms(self, params):
         # specify json encoding of results
         params['wt'] = 'json'
         path = 'terms/?%s' % safe_urlencode(params, True)
-        return self._send_request('get', path)
+        return (yield self._send_request('get', path))
 
+    @gen.coroutine
     def _update(self, message, clean_ctrl_chars=True, commit=True, softCommit=False, waitFlush=None, waitSearcher=None):
         """
         Posts the given xml message to http://<self.url>/update and
@@ -396,14 +404,16 @@ class Solr(object):
         if clean_ctrl_chars:
             message = sanitize(message)
 
-        return self._send_request('post', path, message, {'Content-type': 'text/xml; charset=utf-8'})
+        return (yield self._send_request('post', path, message, {'Content-type': 'text/xml; charset=utf-8'}))
 
+    # TODO: convert to @staticmethod
     def _extract_error(self, resp):
         """
         Extract the actual error message from a solr response.
         """
         return '[Reason: {}]'.format(resp.reason)
 
+    # TODO: convert to @staticmethod
     def _scrape_response(self, headers, response):
         """
         Scrape the html response.
@@ -475,6 +485,7 @@ class Solr(object):
 
     # Conversion #############################################################
 
+    # TODO: convert to @staticmethod
     def _from_python(self, value):
         """
         Converts python values to a form suitable for insertion into the xml
@@ -504,6 +515,7 @@ class Solr(object):
 
         return clean_xml_string(value)
 
+    # TODO: convert to @staticmethod
     def _to_python(self, value):
         """
         Converts values from Solr to native Python values.
@@ -555,6 +567,7 @@ class Solr(object):
 
         return value
 
+    # TODO: convert to @staticmethod
     def _is_null_value(self, value):
         """
         Check if a given value is ``null``.
@@ -579,6 +592,7 @@ class Solr(object):
 
     # API Methods ############################################################
 
+    @gen.coroutine
     def search(self, q, **kwargs):
         """
         Performs a search and returns the results.
@@ -602,7 +616,7 @@ class Solr(object):
         """
         params = {'q': q}
         params.update(kwargs)
-        response = self._select(params)
+        response = yield self._select(params)
 
         # TODO: make result retrieval lazy and allow custom result objects
         result = self.decoder.decode(response)
@@ -634,6 +648,7 @@ class Solr(object):
         self.log.debug("Found '%s' search results.", numFound)
         return Results(response.get('docs', ()), numFound, **result_kwargs)
 
+    @gen.coroutine
     def more_like_this(self, q, mltfl, **kwargs):
         """
         Finds and returns results similar to the provided query.
@@ -650,7 +665,7 @@ class Solr(object):
             'mlt.fl': mltfl,
         }
         params.update(kwargs)
-        response = self._mlt(params)
+        response = yield self._mlt(params)
 
         result = self.decoder.decode(response)
 
@@ -663,6 +678,7 @@ class Solr(object):
         self.log.debug("Found '%s' MLT results.", result['response']['numFound'])
         return Results(result['response']['docs'], result['response']['numFound'])
 
+    @gen.coroutine
     def suggest_terms(self, fields, prefix, **kwargs):
         """
         Accepts a list of field names and a prefix
@@ -677,7 +693,7 @@ class Solr(object):
             'terms.prefix': prefix,
         }
         params.update(kwargs)
-        response = self._suggest_terms(params)
+        response = yield self._suggest_terms(params)
         result = self.decoder.decode(response)
         terms = result.get("terms", {})
         res = {}
@@ -701,6 +717,7 @@ class Solr(object):
         self.log.debug("Found '%d' Term suggestions results.", sum(len(j) for i, j in res.items()))
         return res
 
+    # TODO: convert to @staticmethod
     def _build_doc(self, doc, boost=None, fieldUpdates=None):
         doc_elem = ET.Element('doc')
 
@@ -734,7 +751,8 @@ class Solr(object):
 
         return doc_elem
 
-    def add(self, docs, boost=None, fieldUpdates=None, commit=True, softCommit=False, commitWithin=None, waitFlush=None, waitSearcher=None):
+    @gen.coroutine
+    def add(self, docs, boost=None, fieldUpdates=None, commit=None, softCommit=None, commitWithin=None, waitFlush=None, waitSearcher=None):
         """
         Adds or updates documents.
 
@@ -768,6 +786,9 @@ class Solr(object):
                 },
             ])
         """
+        commit = True if commit is None else commit
+        softCommit = False if softCommit is None else softCommit
+
         start_time = time.time()
         self.log.debug("Starting to build add request...")
         message = ET.Element('add')
@@ -785,8 +806,9 @@ class Solr(object):
 
         end_time = time.time()
         self.log.debug("Built add request of %s docs in %0.2f seconds.", len(message), end_time - start_time)
-        return self._update(m, commit=commit, softCommit=softCommit, waitFlush=waitFlush, waitSearcher=waitSearcher)
+        return (yield self._update(m, commit=commit, softCommit=softCommit, waitFlush=waitFlush, waitSearcher=waitSearcher))
 
+    @gen.coroutine
     def delete(self, id=None, q=None, commit=True, waitFlush=None, waitSearcher=None):
         """
         Deletes documents.
@@ -816,8 +838,9 @@ class Solr(object):
         elif q is not None:
             m = '<delete><query>%s</query></delete>' % q
 
-        return self._update(m, commit=commit, waitFlush=waitFlush, waitSearcher=waitSearcher)
+        return (yield self._update(m, commit=commit, waitFlush=waitFlush, waitSearcher=waitSearcher))
 
+    @gen.coroutine
     def commit(self, softCommit=False, waitFlush=None, waitSearcher=None, expungeDeletes=None):
         """
         Forces Solr to write the index data to disk.
@@ -840,8 +863,9 @@ class Solr(object):
         else:
             msg = '<commit />'
 
-        return self._update(msg, softCommit=softCommit, waitFlush=waitFlush, waitSearcher=waitSearcher)
+        return (yield self._update(msg, softCommit=softCommit, waitFlush=waitFlush, waitSearcher=waitSearcher))
 
+    @gen.coroutine
     def optimize(self, waitFlush=None, waitSearcher=None, maxSegments=None):
         """
         Tells Solr to streamline the number of segments used, essentially a
@@ -863,7 +887,7 @@ class Solr(object):
         else:
             msg = '<optimize />'
 
-        return self._update(msg, waitFlush=waitFlush, waitSearcher=waitSearcher)
+        return (yield self._update(msg, waitFlush=waitFlush, waitSearcher=waitSearcher))
 
     def extract(self, file_obj, extractOnly=True, **kwargs):
         """
