@@ -168,12 +168,6 @@ class SolrTestCase(testing.AsyncTestCase):
         except subprocess.CalledProcessError as cpe:
             self.fail(cpe)
 
-    def tearDown(self):
-        # TODO: I don't think we need either of these...
-        #self.solr.url = self.server_url
-        #yield self.solr.delete(q='*:*')  # TODO: make a direct Solr request
-        super(SolrTestCase, self).tearDown()
-
     def clear_solr(self):
         "Clear the test Solr instance by deleting all its records. Synchronous method."
         synchttp = httpclient.HTTPClient()
@@ -225,7 +219,7 @@ class SolrTestCase(testing.AsyncTestCase):
         resp_body = yield self.solr._send_request('GET', 'select/?q=doc&wt=json')
         self.assertTrue('"numFound":4' in resp_body)
 
-    # TODO: get this error situation to work, then test all the other errors
+    ## TODO: get this error situation to work, then test all the other errors
     #@testing.gen_test
     #def test__send_request_3(self):
         #"Test a non-existent URL."
@@ -253,7 +247,6 @@ class SolrTestCase(testing.AsyncTestCase):
 
     @testing.gen_test
     def test__suggest_terms(self):
-        # TODO: this doesn't seem to call the right method-under-test?
         resp_body = yield self.solr._select({'terms.fl': 'title'})
         resp_data = json.loads(resp_body)
         self.assertEqual(resp_data['response']['numFound'], 0)
@@ -545,26 +538,25 @@ class SolrTestCase(testing.AsyncTestCase):
             #</html>
         #""")
         #fake_f.name = "test.html"
-        #self.assertRaises(NotImplementedError, self.solr.extract, fake_f)
-        ##extracted = self.solr.extract(fake_f)
+        #extracted = self.solr.extract(fake_f)
 
-        ### Verify documented response structure:
-        ##self.assertIn('contents', extracted)
-        ##self.assertIn('metadata', extracted)
+        ## Verify documented response structure:
+        #self.assertIn('contents', extracted)
+        #self.assertIn('metadata', extracted)
 
-        ##self.assertIn('foobar', extracted['contents'])
+        #self.assertIn('foobar', extracted['contents'])
 
-        ##m = extracted['metadata']
+        #m = extracted['metadata']
 
-        ##self.assertEqual([fake_f.name], m['stream_name'])
+        #self.assertEqual([fake_f.name], m['stream_name'])
 
-        ##self.assertIn('haystack-test', m, "HTML metadata should have been extracted!")
-        ##self.assertEqual(['test 1234'], m['haystack-test'])
+        #self.assertIn('haystack-test', m, "HTML metadata should have been extracted!")
+        #self.assertEqual(['test 1234'], m['haystack-test'])
 
-        ### Note the underhanded use of a double snowman to verify both that Tika
-        ### correctly decoded entities and that our UTF-8 characters survived the
-        ### round-trip:
-        ##self.assertEqual(['Test Title ☃☃'], m['title'])
+        ## Note the underhanded use of a double snowman to verify both that Tika
+        ## correctly decoded entities and that our UTF-8 characters survived the
+        ## round-trip:
+        #self.assertEqual(['Test Title ☃☃'], m['title'])
 
     def test_full_url(self):
         self.solr.url = 'http://localhost:8983/solr/core0'
