@@ -295,19 +295,19 @@ class Solr(object):
         if files is not None:
             raise NotImplementedError('The "files" parameter in _send_request() does not work in Tornado yet')
 
+        # actual Tornado request
+        # Everything except the body can be Unicode. The body must be
+        # encoded to bytes to work properly on Py3.
+        bytes_body = body
+        if bytes_body is not None:
+            bytes_body = force_bytes(body)
+
+        # prepare the request
+        request = httpclient.HTTPRequest(url, method=method, headers=headers, body=bytes_body,
+                                            request_timeout=self.timeout)
+
         # TODO: test all the "except" clauses
         try:
-            # actual Tornado request
-            # Everything except the body can be Unicode. The body must be
-            # encoded to bytes to work properly on Py3.
-            bytes_body = body
-            if bytes_body is not None:
-                bytes_body = force_bytes(body)
-
-            # prepare the request
-            request = httpclient.HTTPRequest(url, method=method, headers=headers, body=bytes_body,
-                                             request_timeout=self.timeout)
-
             # run the request
             resp = yield self._client.fetch(request)
         except UnicodeError:
