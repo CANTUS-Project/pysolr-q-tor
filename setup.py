@@ -5,14 +5,14 @@ except ImportError:
 
 
 setup(
-    name="pysolr",
-    version="3.3.0",
+    name="pysolr-tornado",
+    version="3.3.0a",
     description="Lightweight python wrapper for Apache Solr.",
-    author='Daniel Lindsley',
-    author_email='daniel@toastdriven.com',
+    author='Christopher Antila',
+    author_email='christopher@antila.ca',
     long_description=open('README.rst', 'r').read(),
     py_modules=[
-        'pysolr'
+        'pysolrtornado'
     ],
     classifiers=[
         'Development Status :: 5 - Production/Stable',
@@ -27,7 +27,7 @@ setup(
     url='http://github.com/toastdriven/pysolr/',
     license='BSD',
     install_requires=[
-        'requests>=2.0'
+        'tornado>=4.0'
     ],
     extras_require={
         'tomcat': [
