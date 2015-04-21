@@ -7,13 +7,9 @@ the same functionality as ``pysolr`` with one exception: the Solr.extract() meth
 cannot yet add binary-format documents.
 
 ``pysolr`` is a lightweight Python wrapper for `Apache Solr`_. It provides an interface that
-queries the server and returns results based on the query.
+queries the server and returns results based on the query. Originally written by Daniel Lindsley.
 
-.. warning:: We make no promises that this works for anyone other than us at Cantus-Project. We are
-    not expecting to publish this on PyPI, and we do not promise to maintain releases or keep it in
-    step with upstream ``pysolr``.
-
-    However, if you're interested in collaborating on that maintenance, we might be up for it!
+.. note:: While this module is called ``pysolr-tornado``, you must import it as ``pysolrtornado``.
 
 .. _`Apache Solr`: http://lucene.apache.org/solr/
 
@@ -73,10 +69,10 @@ Basic usage looks like:
 
     # If on Python 2.X
     from __future__ import print_function
-    import pysolr
+    import pysolrtornado
 
     # Setup a Solr instance. The timeout is optional.
-    solr = pysolr.Solr('http://localhost:8983/solr/', timeout=10)
+    solr = pysolrtornado.Solr('http://localhost:8983/solr/', timeout=10)
 
     # How you'd index data.
     solr.add([

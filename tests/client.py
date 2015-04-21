@@ -6,9 +6,9 @@ import subprocess
 
 from tornado import httpclient, testing
 
-from pysolr import (Solr, Results, SolrError, unescape_html, safe_urlencode,
-                    force_unicode, force_bytes, sanitize, json, ET, IS_PY3,
-                    clean_xml_string)
+from pysolrtornado import (Solr, Results, SolrError, unescape_html, safe_urlencode,
+                           force_unicode, force_bytes, sanitize, json, ET, IS_PY3,
+                           clean_xml_string)
 
 try:
     import unittest2 as unittest
