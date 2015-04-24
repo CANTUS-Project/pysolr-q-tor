@@ -235,6 +235,9 @@ class Results(object):
     def __iter__(self):
         return iter(self.docs)
 
+    def __getitem__(self, i):
+        return self.docs[i]
+
 
 class Solr(object):
     """
