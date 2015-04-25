@@ -9,3 +9,4 @@ pysolr.egg-info/
 .tox
 solr*.tgz
 test-solr.std???.log
+pysolr_tornado.egg-info*
