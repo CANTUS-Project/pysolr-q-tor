@@ -53,7 +53,7 @@ except NameError:
     long = int
 
 
-__author__ = 'Daniel Lindsley, Joseph Kocherhans, Jacob Kaplan-Moss'
+__author__ = 'Daniel Lindsley, Joseph Kocherhans, Jacob Kaplan-Moss, Christopher Antila'
 __all__ = ['Solr']
 __version__ = (3, 3, 0)
 
