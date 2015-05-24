@@ -6,7 +6,7 @@ except ImportError:
 
 setup(
     name="pysolr-tornado",
-    version="3.3.1-tor1",
+    version="3.3.1-tor2",
     description="Lightweight python wrapper for Apache Solr.",
     author='Christopher Antila',
     author_email='christopher@antila.ca',
