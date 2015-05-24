@@ -1,27 +1,31 @@
 # -*- coding: utf-8 -*-
-from __future__ import print_function
-from __future__ import unicode_literals
-from __future__ import absolute_import
+from __future__ import absolute_import, print_function, unicode_literals
 
-import os
+import ast
 import datetime
 import logging
+import os
 import re
 import socket
 import time
 import ast
+# We can remove ExpatError when we drop support for Python 2.6:
+from xml.parsers.expat import ExpatError
+
 
 from tornado import gen, httpclient
 from tornado import ioloop as ioloop_module
 
 try:
-    # Prefer lxml, if installed.
-    from lxml import etree as ET
+    from xml.etree import ElementTree as ET
 except ImportError:
     try:
         from xml.etree import cElementTree as ET
     except ImportError:
         from xml.etree import ElementTree as ET
+
+# Remove this when we drop Python 2.6:
+ParseError = getattr(ET, 'ParseError', SyntaxError)
 
 try:
     # Prefer simplejson, if installed.
@@ -42,6 +46,12 @@ try:
 except ImportError:
     # Python 2.X
     import htmlentitydefs as htmlentities
+
+try:
+    # Python 3.X
+    from http.client import HTTPException
+except ImportError:
+    from httplib import HTTPException
 
 try:
     # Python 2.X
@@ -429,35 +439,40 @@ class Solr(object):
             server_type = 'jetty'
 
         if server_string and 'coyote' in server_string.lower():
-            import lxml.html
             server_type = 'tomcat'
 
         reason = None
         full_html = ''
         dom_tree = None
 
+        if response.startswith('<?xml'):
+            # Try a strict XML parse
+            try:
+                soup = ET.fromstring(response)
+
+                reason_node = soup.find('lst[@name="error"]/str[@name="msg"]')
+                tb_node = soup.find('lst[@name="error"]/str[@name="trace"]')
+                if reason_node is not None:
+                    full_html = reason = reason_node.text.strip()
+                if tb_node is not None:
+                    full_html = tb_node.text.strip()
+                    if reason is None:
+                        reason = full_html
+
+                # Since we had a precise match, we'll return the results now:
+                if reason and full_html:
+                    return reason, full_html
+            except (ParseError, ExpatError):
+                # XML parsing error, so we'll let the more liberal code handle it.
+                pass
+
         if server_type == 'tomcat':
-            # Tomcat doesn't produce a valid XML response
-            soup = lxml.html.fromstring(response)
-            body_node = soup.find('body')
-            p_nodes = body_node.cssselect('p')
-
-            for p_node in p_nodes:
-                children = p_node.getchildren()
-
-                if len(children) >= 2 and 'message' in children[0].text.lower():
-                    reason = children[1].text
-
-                if len(children) >= 2 and hasattr(children[0], 'renderContents'):
-                    if 'description' in children[0].renderContents().lower():
-                        if reason is None:
-                            reason = children[1].renderContents()
-                        else:
-                            reason += ", " + children[1].renderContents()
-
-            if reason is None:
-                from lxml.html.clean import clean_html
-                full_html = clean_html(response)
+            # Tomcat doesn't produce a valid XML response or consistent HTML:
+            m = re.search(r'<(h1)[^>]*>\s*(.+?)\s*</\1>', response, re.IGNORECASE)
+            if m:
+                reason = m.group(2)
+            else:
+                full_html = "%s" % response
         else:
             # Let's assume others do produce a valid XML response
             try:
@@ -475,7 +490,7 @@ class Solr(object):
 
                 if reason is None:
                     full_html = ET.tostring(dom_tree)
-            except SyntaxError as err:
+            except (SyntaxError, ExpatError) as err:
                 full_html = "%s" % response
 
         full_html = force_unicode(full_html)
