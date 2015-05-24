@@ -21,7 +21,7 @@ except ImportError:
     try:
         from xml.etree import cElementTree as ET
     except ImportError:
-        raise ImportError("No suitable ElementTree implementation was found.")
+        from xml.etree import ElementTree as ET
 
 try:
     # Prefer simplejson, if installed.
