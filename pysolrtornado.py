@@ -8,10 +8,8 @@ import os
 import re
 import socket
 import time
-import ast
 # We can remove ExpatError when we drop support for Python 2.6:
 from xml.parsers.expat import ExpatError
-
 
 from tornado import gen, httpclient
 from tornado import ioloop as ioloop_module
@@ -46,12 +44,6 @@ try:
 except ImportError:
     # Python 2.X
     import htmlentitydefs as htmlentities
-
-try:
-    # Python 3.X
-    from http.client import HTTPException
-except ImportError:
-    from httplib import HTTPException
 
 try:
     # Python 2.X
@@ -95,7 +87,7 @@ if os.environ.get("DEBUG_PYSOLR", "").lower() in ("true", "1"):
 
 def is_py3():
     try:
-        basestring
+        basestring  # pylint: disable=pointless-statement
         return False
     except NameError:
         return True
@@ -490,7 +482,7 @@ class Solr(object):
 
                 if reason is None:
                     full_html = ET.tostring(dom_tree)
-            except (SyntaxError, ExpatError) as err:
+            except (SyntaxError, ExpatError):
                 full_html = "%s" % response
 
         full_html = force_unicode(full_html)
@@ -827,7 +819,7 @@ class Solr(object):
         return (yield self._update(m, commit=commit, softCommit=softCommit, waitFlush=waitFlush, waitSearcher=waitSearcher))
 
     @gen.coroutine
-    def delete(self, id=None, q=None, commit=True, waitFlush=None, waitSearcher=None):
+    def delete(self, id=None, q=None, commit=True, waitFlush=None, waitSearcher=None):  # pylint: disable=redefined-builtin
         """
         Deletes documents.
 
