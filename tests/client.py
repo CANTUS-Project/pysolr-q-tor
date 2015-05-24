@@ -214,12 +214,61 @@ class SolrTestCase(testing.AsyncTestCase):
         resp_body = yield self.solr._send_request('GET', 'select/?q=doc&wt=json')
         self.assertTrue('"numFound":4' in resp_body)
 
-    ## TODO: get this error situation to work, then test all the other errors
-    #@testing.gen_test
-    #def test__send_request_3(self):
-        #"Test a non-existent URL."
-        #self.solr.url = 'http://127.0.0.1:567898/wahtever'
-        #self.assertRaises(SolrError, self.solr._send_request, 'get', 'select/?q=doc&wt=json')
+    @testing.gen_test
+    def test__send_request_3(self):
+        "Test protocol-less server URL (ValueError)."
+        self.solr.url = 'solrcom.org'
+        try:
+            yield self.solr._send_request('get', 'select/?q=doc&wt=json')
+        except SolrError as sol_err:
+            self.assertTrue(sol_err.args[0].startswith(Solr._FETCH_VALUE_ERROR[:20]))
+
+    @testing.gen_test
+    def test__send_request_4(self):
+        "Test too-long server URL (UnicodeError)."
+        # TODO: why does this always come out as ValueError-ish?
+        self.solr.url = 'http://thisistheverylongpathtomysolrtestserverbutitwillnotworkeventhoughthatmakesmesad.org'
+        try:
+            yield self.solr._send_request('get', 'select/?q=doc&wt=json')
+        except SolrError as sol_err:
+            self.assertTrue(sol_err.args[0].startswith(Solr._FETCH_UNICODE_ERROR[:15]))
+
+    @testing.gen_test
+    def test__send_request_5(self):
+        "Test unresolveable DNS server URL (gaierror)."
+        self.solr.url = 'http://yeoldesolrserver.music'
+        try:
+            yield self.solr._send_request('get', 'select/?q=doc&wt=json')
+        except SolrError as sol_err:
+            self.assertTrue(sol_err.args[0].startswith(Solr._FETCH_SOCKET_ERROR[:20]))
+
+    @testing.gen_test
+    def test__send_request_6(self):
+        "Test unknown HTTP method (KeyError)."
+        try:
+            yield self.solr._send_request('dance', 'select/?q=doc&wt=json')
+        except SolrError as sol_err:
+            self.assertTrue(sol_err.args[0].startswith(Solr._FETCH_KEY_ERROR[:20]))
+
+    @testing.gen_test
+    def test__send_request_7(self):
+        "Test connection error (ConnectionRefusedError, subclass of ConnectionError)."
+        # we'll roll our own mock for this test
+        def mock_fetch(*args, **kwargs):
+            raise ConnectionRefusedError('whatever')
+        self.solr._client.fetch = mock_fetch
+        try:
+            yield self.solr._send_request('get', 'intersect/')
+        except SolrError as sol_err:
+            self.assertTrue(sol_err.args[0].startswith(Solr._FETCH_CONN_ERROR[:20]))
+
+    @testing.gen_test
+    def test__send_request_8(self):
+        "Test 404 from Server (HTTPError)."
+        try:
+            yield self.solr._send_request('get', 'intersect/')
+        except SolrError as sol_err:
+            self.assertEqual(sol_err.args[0], '404: Not Found')
 
     @testing.gen_test
     def test__select(self):

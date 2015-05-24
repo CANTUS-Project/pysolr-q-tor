@@ -261,6 +261,15 @@ class Solr(object):
         solr = pysolr.Solr('http://localhost:8983/solr', timeout=10)
 
     """
+
+    # Error messages for Solr._send_request()
+    # They're class-level so they may be translated easier.
+    _FETCH_VALUE_ERROR = 'URL is empty or protocol missing: {}'
+    _FETCH_UNICODE_ERROR = 'URL is too long: {}'
+    _FETCH_SOCKET_ERROR = 'Socket error (DNS?) connecting to {}'
+    _FETCH_KEY_ERROR = 'Unknown HTTP method "{}"'
+    _FETCH_CONN_ERROR = 'Connection error with {}'
+
     def __init__(self, url, decoder=None, timeout=None, ioloop=None):
         self.decoder = decoder or json.JSONDecoder()
         self.url = url
@@ -311,29 +320,31 @@ class Solr(object):
         request = httpclient.HTTPRequest(url, method=method, headers=headers, body=bytes_body,
                                             request_timeout=self.timeout)
 
-        # TODO: test all the "except" clauses
         try:
             # run the request
-            resp = yield self._client.fetch(request, raise_error=False)
+            resp = yield self._client.fetch(request)
         except UnicodeError:
             # when the URL is empty or too long or something
-            raise SolrError('UnicodeError with URL: {}'.format(url))
+            # NOTE: must come before ValueError, since UnicodeError is a subclass of ValueError
+            raise SolrError(Solr._FETCH_UNICODE_ERROR.format(url))
+        except ValueError:
+            # when the URL is empty or the HTTP/HTTPS part is missing
+            raise SolrError(Solr._FETCH_VALUE_ERROR.format(url))
         except socket.gaierror:
             # DNS doesn't resolve or simlar
-            raise SolrError('Low-level error connecting to {}'.format(url))
+            raise SolrError(Solr._FETCH_SOCKET_ERROR.format(url))
         except KeyError:
             # unknown HTTP method
-            raise SolrError('Unable to send HTTP method "{}"'.format(method))
-        except ConnectionRefusedError:
+            raise SolrError(Solr._FETCH_KEY_ERROR.format(method))
+        except ConnectionError:
             # could be various things
-            raise SolrError('Connection refused to {}'.format(url))
-        else:
-            # did the connection otherwise fail?
-            if int(resp.code) != 200:
-                error_message = self._extract_error(resp)
-                self.log.error(error_message, extra={'data': {'headers': resp.headers,
-                                                              'response': resp.body}})
-                raise SolrError(error_message)
+            raise SolrError(Solr._FETCH_CONN_ERROR.format(url))
+        except httpclient.HTTPError as the_error:
+            # Solr returned an error
+            error_message = '{}: {}'.format(the_error.code, the_error.response.reason)
+            self.log.error(error_message, extra={'data': {'headers': the_error.response,
+                                                          'response': the_error.response}})
+            raise SolrError(error_message)
 
         end_time = time.time()
         self.log.info("Finished '%s' (%s) with body '%s' in %0.3f seconds.",
