@@ -314,7 +314,7 @@ class Solr(object):
         # TODO: test all the "except" clauses
         try:
             # run the request
-            resp = yield self._client.fetch(request)
+            resp = yield self._client.fetch(request, raise_error=False)
         except UnicodeError:
             # when the URL is empty or too long or something
             raise SolrError('UnicodeError with URL: {}'.format(url))
