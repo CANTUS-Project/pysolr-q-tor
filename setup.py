@@ -24,7 +24,7 @@ setup(
         'Programming Language :: Python :: 2',
         'Programming Language :: Python :: 3',
     ],
-    url='http://github.com/toastdriven/pysolr/',
+    url='https://github.com/CANTUS-Project/pysolr-tornado/',
     license='BSD',
     install_requires=[
         'tornado>=4.0'
