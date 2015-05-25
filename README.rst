@@ -4,7 +4,9 @@ pysolr-tornado
 
 ``pysolr-tornado`` is a version of ``pysolr`` modified to use Tornado. At the moment, it supports
 the same functionality as ``pysolr`` with one exception: the Solr.extract() method. That means you
-cannot yet add binary-format documents.
+cannot yet add binary-format documents. Versions are based on the upstream release with the same
+number. Not quite ready for production use yet, but you can help us get there! Please report any
+issues you find.
 
 ``pysolr`` is a lightweight Python wrapper for `Apache Solr`_. It provides an interface that
 queries the server and returns results based on the query. Originally written by Daniel Lindsley.
@@ -32,7 +34,7 @@ Features
 Requirements
 ============
 
-For ``pysolr-tornado`` we only, and always, test with the following software.
+For ``pysolr-tornado`` we only, and always, test with the following software. So far.
 
  * Solr 4.10
  * CPython 3.4
