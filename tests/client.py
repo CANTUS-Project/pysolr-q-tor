@@ -4,6 +4,8 @@ from __future__ import unicode_literals
 import datetime
 import sys
 
+import requests
+
 from pysolr import (Solr, Results, SolrError, unescape_html, safe_urlencode,
                     force_unicode, force_bytes, sanitize, json, ET, IS_PY3,
                     clean_xml_string)
@@ -114,50 +116,31 @@ class SolrTestCase(unittest.TestCase):
         self.default_solr = Solr('http://localhost:8983/solr/collection1')
         # Short timeouts.
         self.solr = Solr('http://localhost:8983/solr/collection1', timeout=2)
-        self.docs = [
-            {
-                'id': 'doc_1',
-                'title': 'Example doc 1',
-                'price': 12.59,
-                'popularity': 10,
-            },
-            {
-                'id': 'doc_2',
-                'title': 'Another example ☃ doc 2',
-                'price': 13.69,
-                'popularity': 7,
-            },
-            {
-                'id': 'doc_3',
-                'title': 'Another thing',
-                'price': 2.35,
-                'popularity': 8,
-            },
-            {
-                'id': 'doc_4',
-                'title': 'doc rock',
-                'price': 99.99,
-                'popularity': 10,
-            },
-            {
-                'id': 'doc_5',
-                'title': 'Boring',
-                'price': 1.12,
-                'popularity': 2,
-            },
-        ]
+        self.docs = u'''
+            {"add": {"doc": {"id": "doc_1", "title": "Example doc 1", "price": "12.59", "popularity": "10"}},
+             "add": {"doc": {"id": "doc_2", "title": "Another example ☃ doc 2", "price": "13.69", "popularity": "7"}},
+             "add": {"doc": {"id": "doc_3", "title": "Another thing", "price": "2.35", "popularity": "8"}},
+             "add": {"doc": {"id": "doc_4", "title": "doc rock", "price": "99.99", "popularity": "10"}},
+             "add": {"doc": {"id": "doc_5", "title": "Boring", "price": "1.12", "popularity": "2"}}
+            }'''
+        self.docs = self.docs.encode('utf-8')
 
-        # Clear it.
-        self.solr.delete(q='*:*')
-
-        # Index our docs. Yes, this leans on functionality we're going to test
-        # later & if it's broken, everything will catastrophically fail.
-        # Such is life.
-        self.solr.add(self.docs)
-
-    def tearDown(self):
-        self.solr.delete(q='*:*')
-        super(SolrTestCase, self).tearDown()
+        # Reindex all the data. It's important to do this in the setUp() method so that any test
+        # affected by an improperly-refreshed Solr instance will fail. If we did clean-up in the
+        # tearDown() method, even if we did a fail() there, we would never know which tests were
+        # affected by an improperly-refreshed Solr instance.
+        delete_request = requests.post('http://localhost:8983/solr/collection1/update',
+                                       params={'commit': 'true'},
+                                       data=b'<delete><query>*:*</query></delete>',
+                                       headers={'Content-type': 'text/xml; charset=utf-8'})
+        if delete_request.status_code != 200:
+            self.fail(delete_request.reason)
+        add_request = requests.post('http://localhost:8983/solr/collection1/update',
+                                    params={'commit': 'true'},
+                                    data=self.docs,
+                                    headers={'Content-type': 'application/json; charset=utf-8'})
+        if add_request.status_code != 200:
+            self.fail(add_request.reason)
 
     def test_init(self):
         self.assertEqual(self.default_solr.url, 'http://localhost:8983/solr/collection1')
