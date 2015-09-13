@@ -135,13 +135,13 @@ class SolrTestCase(unittest.TestCase):
                                        data=b'<delete><query>*:*</query></delete>',
                                        headers={'Content-type': 'text/xml; charset=utf-8'})
         if delete_request.status_code != 200:
-            self.fail(delete_request.reason)
+            self.fail('Unable to clear Solr instance')
         add_request = requests.post('{}/update'.format(self.solr_url),
                                     params={'commit': 'true'},
                                     data=self.docs,
                                     headers={'Content-type': 'application/json; charset=utf-8'})
         if add_request.status_code != 200:
-            self.fail(add_request.reason)
+            self.fail('Unable to load test documents to Solr')
 
     def test_init(self):
         self.assertEqual(self.default_solr.url, self.solr_url)
