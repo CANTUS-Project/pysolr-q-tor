@@ -36,6 +36,7 @@ if [[ $SOLR_VERSION == 5* ]]; then
     mkdir -p server/solr/collection1
     mv server/solr/configsets/basic_configs/conf server/solr/collection1
     echo "name=collection1" > server/solr/collection1/core.properties
+    python "../../tests/amend_schema.py"
 else
     mv "example" "server"
 fi
