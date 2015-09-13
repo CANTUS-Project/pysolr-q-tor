@@ -113,9 +113,10 @@ class ResultsTestCase(unittest.TestCase):
 class SolrTestCase(unittest.TestCase):
     def setUp(self):
         super(SolrTestCase, self).setUp()
-        self.default_solr = Solr('http://localhost:8983/solr/collection1')
+        self.solr_url = 'http://localhost:8983/solr/collection1'
+        self.default_solr = Solr(self.solr_url)
         # Short timeouts.
-        self.solr = Solr('http://localhost:8983/solr/collection1', timeout=2)
+        self.solr = Solr(self.solr_url, timeout=2)
         self.docs = u'''
             {"add": {"doc": {"id": "doc_1", "title": "Example doc 1", "price": "12.59", "popularity": "10"}},
              "add": {"doc": {"id": "doc_2", "title": "Another example ☃ doc 2", "price": "13.69", "popularity": "7"}},
@@ -129,13 +130,13 @@ class SolrTestCase(unittest.TestCase):
         # affected by an improperly-refreshed Solr instance will fail. If we did clean-up in the
         # tearDown() method, even if we did a fail() there, we would never know which tests were
         # affected by an improperly-refreshed Solr instance.
-        delete_request = requests.post('http://localhost:8983/solr/collection1/update',
+        delete_request = requests.post('{}/update'.format(self.solr_url),
                                        params={'commit': 'true'},
                                        data=b'<delete><query>*:*</query></delete>',
                                        headers={'Content-type': 'text/xml; charset=utf-8'})
         if delete_request.status_code != 200:
             self.fail(delete_request.reason)
-        add_request = requests.post('http://localhost:8983/solr/collection1/update',
+        add_request = requests.post('{}/update'.format(self.solr_url),
                                     params={'commit': 'true'},
                                     data=self.docs,
                                     headers={'Content-type': 'application/json; charset=utf-8'})
@@ -143,21 +144,23 @@ class SolrTestCase(unittest.TestCase):
             self.fail(add_request.reason)
 
     def test_init(self):
-        self.assertEqual(self.default_solr.url, 'http://localhost:8983/solr/collection1')
+        self.assertEqual(self.default_solr.url, self.solr_url)
         self.assertTrue(isinstance(self.default_solr.decoder, json.JSONDecoder))
         self.assertEqual(self.default_solr.timeout, 60)
 
-        self.assertEqual(self.solr.url, 'http://localhost:8983/solr/collection1')
+        self.assertEqual(self.solr.url, self.solr_url)
         self.assertTrue(isinstance(self.solr.decoder, json.JSONDecoder))
         self.assertEqual(self.solr.timeout, 2)
 
     def test__create_full_url(self):
         # Nada.
-        self.assertEqual(self.solr._create_full_url(path=''), 'http://localhost:8983/solr/collection1')
+        self.assertEqual(self.solr._create_full_url(path=''), self.solr_url)
         # Basic path.
-        self.assertEqual(self.solr._create_full_url(path='pysolr_tests'), 'http://localhost:8983/solr/collection1/pysolr_tests')
+        self.assertEqual(self.solr._create_full_url(path='pysolr_tests'),
+                         '{}/pysolr_tests'.format(self.solr_url))
         # Leading slash (& making sure we don't touch the trailing slash).
-        self.assertEqual(self.solr._create_full_url(path='/pysolr_tests/select/?whatever=/'), 'http://localhost:8983/solr/collection1/pysolr_tests/select/?whatever=/')
+        self.assertEqual(self.solr._create_full_url(path='/pysolr_tests/select/?whatever=/'),
+                         '{}/pysolr_tests/select/?whatever=/'.format(self.solr_url))
 
     def test__send_request(self):
         # Test a valid request.
@@ -509,8 +512,8 @@ class SolrTestCase(unittest.TestCase):
         self.assertEqual(['Test Title ☃☃'], m['title'])
 
     def test_full_url(self):
-        self.solr.url = 'http://localhost:8983/solr/collection1'
+        self.solr.url = self.solr_url
         full_url = self.solr._create_full_url(path='/update')
 
         # Make sure trailing and leading slashes do not collide:
-        self.assertEqual(full_url, 'http://localhost:8983/solr/collection1/update')
+        self.assertEqual(full_url, '{}/update'.format(self.solr_url))
