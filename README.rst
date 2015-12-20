@@ -13,7 +13,9 @@ Status
 
 .. image:: https://secure.travis-ci.org/toastdriven/pysolr.png
    :target: https://secure.travis-ci.org/toastdriven/pysolr
-
+.. image:: https://www.quantifiedcode.com/api/v1/project/e650bacf59a0427fa3388771f34a7df4/badge.svg
+    :target: https://www.quantifiedcode.com/app/project/e650bacf59a0427fa3388771f34a7df4
+    :alt: Code issues
 
 Features
 ========
