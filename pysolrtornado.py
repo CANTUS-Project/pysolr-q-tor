@@ -686,6 +686,9 @@ class Solr(object):
         Optionally accepts ``**kwargs`` for additional options to be passed
         through the Solr URL.
 
+        Using the ``df`` keyword argument (specifying a default field) is strongly recommended, and
+        indeed required for Solr 5.
+
         Returns ``self.results_cls`` class object (defaults to
         ``pysolr.Results``)
 

@@ -11,6 +11,8 @@ from tornado import httpclient
 RETRY_EVERY = 1  # seconds
 RETRY_DURATION = 30  # seconds
 
+KEEP_WAITING_STATII = (503,)  # if Solr returns one of these HTTP status codes, keep waiting for it
+
 
 def start_solr():
     solr_proc = subprocess.Popen("./start-solr-test-server.sh",
@@ -25,8 +27,11 @@ def start_solr():
         try:
             status_code = my_client.fetch("http://localhost:8983/solr/collection1/select/?q=startup?df=id").code
         except httpclient.HTTPError as err:
-            print('Tornado reports an HTTP error while starting Solr: response code {}'.format(err.code))
-            status_code = err.code
+            if err.code not in KEEP_WAITING_STATII:
+                print('Tornado reports an HTTP error while starting Solr: ({}) {}'.format(err.code, err.response.reason))
+                solr_proc.terminate()
+                solr_proc.wait()
+                sys.exit(1)
         except:
             status_code = 0
         finally:
@@ -39,6 +44,8 @@ def start_solr():
             time.sleep(RETRY_EVERY)
         else:
             print('Solr took too long to start ({} retries in {} seconds)'.format(solr_retries, RETRY_DURATION), file=sys.stderr)
+            solr_proc.terminate()
+            solr_proc.wait()
             sys.exit(1)
 
     print('Solr started! (waited {} seconds)'.format(solr_retries * RETRY_EVERY))

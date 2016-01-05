@@ -47,7 +47,7 @@ else
 fi
 
 # Add MoreLikeThis handler
-perl -p -i -e 's|<!-- A Robust Example|<!-- More like this request handler -->\n  <requestHandler name="/mlt" class="solr.MoreLikeThisHandler" />\n\n\n  <!-- A Robust Example|'g server/solr/collection1/conf/solrconfig.xml
+perl -p -i -e 's|<!-- Search Components|<!-- More like this request handler -->\n  <requestHandler name="/mlt" class="solr.MoreLikeThisHandler" />\n\n\n  <!-- Search Components|'g server/solr/collection1/conf/solrconfig.xml
 
 echo 'Starting server'
 # We use exec to allow process monitors to correctly kill the

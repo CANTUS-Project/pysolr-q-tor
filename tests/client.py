@@ -200,21 +200,22 @@ class SolrTestCase(testing.AsyncTestCase):
     def test__send_request_1(self):
         "Test a valid request."
         resp_body = yield self.solr._send_request('GET', 'select/?q=doc&wt=json')
+        resp_body = yield self.solr._send_request('GET', 'select/?q=doc&wt=json&df=title')
         self.assertTrue('"numFound":3' in resp_body)
 
     @testing.gen_test()
     def test__send_request_2(self):
-        "Test a lowercase method & a body."
-        resp_body = yield self.solr._send_request('GET', 'select/?q=doc&wt=json')
+        "Test a lowercase HTTP method & a body."
+        resp_body = yield self.solr._send_request('GET', 'select/?q=doc&wt=json&df=title')
         self.assertTrue('"numFound":3' in resp_body)
 
         xml_body = '<add><doc><field name="id">doc_12</field><field name="title">what is up doc?</field></doc></add>'
-        resp_body = yield self.solr._send_request('POST', 'update/?softCommit=true', body=xml_body, headers={
+        resp_body = yield self.solr._send_request('post', 'update/?softCommit=true', body=xml_body, headers={
             'Content-type': 'text/xml; charset=utf-8',
         })
         self.assertTrue('<int name="status">0</int>' in resp_body)
 
-        resp_body = yield self.solr._send_request('GET', 'select/?q=doc&wt=json')
+        resp_body = yield self.solr._send_request('get', 'select/?q=doc&wt=json&df=title')
         self.assertTrue('"numFound":4' in resp_body)
 
     @testing.gen_test
@@ -222,7 +223,7 @@ class SolrTestCase(testing.AsyncTestCase):
         "Test protocol-less server URL (ValueError)."
         self.solr.url = 'solrcom.org'
         try:
-            yield self.solr._send_request('get', 'select/?q=doc&wt=json')
+            yield self.solr._send_request('get', 'select/?q=doc&wt=json&df=title')
         except SolrError as sol_err:
             self.assertTrue(sol_err.args[0].startswith(Solr._FETCH_VALUE_ERROR[:20]))
 
@@ -232,7 +233,7 @@ class SolrTestCase(testing.AsyncTestCase):
         # TODO: why does this always come out as ValueError-ish?
         self.solr.url = 'http://thisistheverylongpathtomysolrtestserverbutitwillnotworkeventhoughthatmakesmesad.org'
         try:
-            yield self.solr._send_request('get', 'select/?q=doc&wt=json')
+            yield self.solr._send_request('get', 'select/?q=doc&wt=json&df=title')
         except SolrError as sol_err:
             self.assertTrue(sol_err.args[0].startswith(Solr._FETCH_UNICODE_ERROR[:15]))
 
@@ -241,7 +242,7 @@ class SolrTestCase(testing.AsyncTestCase):
         "Test unresolveable DNS server URL (gaierror)."
         self.solr.url = 'http://yeoldesolrserver.music'
         try:
-            yield self.solr._send_request('get', 'select/?q=doc&wt=json')
+            yield self.solr._send_request('get', 'select/?q=doc&wt=json&df=title')
         except SolrError as sol_err:
             self.assertTrue(sol_err.args[0].startswith(Solr._FETCH_SOCKET_ERROR[:20]))
 
@@ -249,7 +250,7 @@ class SolrTestCase(testing.AsyncTestCase):
     def test__send_request_6(self):
         "Test unknown HTTP method (KeyError)."
         try:
-            yield self.solr._send_request('dance', 'select/?q=doc&wt=json')
+            yield self.solr._send_request('dance', 'select/?q=doc&wt=json&df=title')
         except SolrError as sol_err:
             self.assertTrue(sol_err.args[0].startswith(Solr._FETCH_KEY_ERROR[:20]))
 
@@ -278,31 +279,26 @@ class SolrTestCase(testing.AsyncTestCase):
     @testing.gen_test
     def test__select(self):
         # Short params.
-        resp_body = yield self.solr._select({'q': 'doc'})
+        resp_body = yield self.solr._select({'q': 'doc', 'df': 'title'})
         resp_data = json.loads(resp_body)
         self.assertEqual(resp_data['response']['numFound'], 3)
 
         # Long params.
-        resp_body = yield self.solr._select({'q': 'doc' * 1024})
+        resp_body = yield self.solr._select({'q': 'doc' * 1024, 'df': 'title'})
         resp_data = json.loads(resp_body)
         self.assertEqual(resp_data['response']['numFound'], 0)
         self.assertEqual(len(resp_data['responseHeader']['params']['q']), 3 * 1024)
 
         # Test Deep Pagination CursorMark
-        resp_body = yield self.solr._select({'q': '*', 'cursorMark':'*', 'sort':'id desc', 'start':0, 'rows': 2})
+        resp_body = yield self.solr._select({'q': '*', 'cursorMark': '*', 'sort': 'id desc',
+            'start': 0, 'rows': 2, 'df': 'title'})
         resp_data = json.loads(resp_body)
         self.assertEqual(len(resp_data['response']['docs']), 2)
         self.assertIn('nextCursorMark', resp_data)
 
     @testing.gen_test
-    def test__mlt(self):
-        resp_body = yield self.solr._mlt({'q': 'id:doc_1', 'mlt.fl': 'title'})
-        resp_data = json.loads(resp_body)
-        self.assertEqual(resp_data['response']['numFound'], 0)
-
-    @testing.gen_test
     def test__suggest_terms(self):
-        resp_body = yield self.solr._select({'terms.fl': 'title'})
+        resp_body = yield self.solr._select({'terms.fl': 'title', 'df': 'title'})
         resp_data = json.loads(resp_body)
         self.assertEqual(resp_data['response']['numFound'], 0)
 
@@ -352,9 +348,9 @@ class SolrTestCase(testing.AsyncTestCase):
 
         # Valid XML with a traceback
         resp_4 = self.solr._scrape_response({'server': 'coyote'}, """<?xml version="1.0"?>
-<response>
-<lst name="responseHeader"><int name="status">500</int><int name="QTime">138</int></lst><lst name="error"><str name="msg">Internal Server Error</str><str name="trace">org.apache.solr.common.SolrException: Internal Server Error at java.lang.Thread.run(Thread.java:745)</str><int name="code">500</int></lst>
-</response>""")
+        <response>
+        <lst name="responseHeader"><int name="status">500</int><int name="QTime">138</int></lst><lst name="error"><str name="msg">Internal Server Error</str><str name="trace">org.apache.solr.common.SolrException: Internal Server Error at java.lang.Thread.run(Thread.java:745)</str><int name="code">500</int></lst>
+        </response>""")
         self.assertEqual(resp_4, (u"Internal Server Error", u"org.apache.solr.common.SolrException: Internal Server Error at java.lang.Thread.run(Thread.java:745)"))
 
     def test__scrape_response_tomcat(self):
@@ -368,7 +364,6 @@ class SolrTestCase(testing.AsyncTestCase):
         reason, full_html = self.solr._scrape_response({'server': 'coyote'}, bogus_xml)
         self.assertEqual(reason, None)
         self.assertEqual(full_html, bogus_xml.replace("\n", ""))
-
 
     def test__from_python(self):
         self.assertEqual(self.solr._from_python(datetime.date(2013, 1, 18)), '2013-01-18T00:00:00Z')
@@ -404,13 +399,13 @@ class SolrTestCase(testing.AsyncTestCase):
     @testing.gen_test
     def test_search_1(self):
         "Basic searches"
-        results = yield self.solr.search('doc')
+        results = yield self.solr.search('doc', df='title')
         self.assertEqual(len(results), 3)
 
-        results = yield self.solr.search('example')
+        results = yield self.solr.search('example', df='title')
         self.assertEqual(len(results), 2)
 
-        results = yield self.solr.search('nothing')
+        results = yield self.solr.search('nothing', df='title')
         self.assertEqual(len(results), 0)
 
     @testing.gen_test
@@ -425,13 +420,15 @@ class SolrTestCase(testing.AsyncTestCase):
             'spellcheck': 'true',
             'spellcheck.collate': 'true',
             'spellcheck.count': 1,
+            'df': 'title',
             # TODO: Can't get these working in my test setup.
             # 'group': 'true',
             # 'group.field': 'id',
         })
         self.assertEqual(len(results), 3)
         self.assertTrue('explain' in results.debug)
-        self.assertEqual(results.highlighting, {u'doc_4': {}, u'doc_2': {}, u'doc_1': {}})
+        for doc in (u'doc_4', u'doc_2', u'doc_1'):
+            self.assertTrue(doc in results.highlighting)
         self.assertEqual(results.spellcheck, {})
         self.assertEqual(results.facets['facet_fields']['popularity'], ['10', 2, '7', 1, '2', 0, '8', 0])
         self.assertTrue(results.qtime is not None)
@@ -442,10 +439,16 @@ class SolrTestCase(testing.AsyncTestCase):
     def test_search_3(self):
         "With a custom results class."
         solr = Solr(self.solr_url, ioloop=self.io_loop, results_cls=dict)
-        results = yield solr.search(q='*:*')
+        results = yield solr.search(q='*:*', df='title')
         self.assertIsInstance(results, dict)
         self.assertTrue('responseHeader' in results)
         self.assertTrue('response' in results)
+
+    @testing.gen_test
+    def test__mlt(self):
+        resp_body = yield self.solr._mlt({'q': 'id:doc_1', 'mlt.fl': 'title', 'df': 'title'})
+        resp_data = json.loads(resp_body)
+        self.assertEqual(resp_data['response']['numFound'], 0)
 
     @testing.gen_test
     def test_more_like_this(self):
@@ -473,8 +476,8 @@ class SolrTestCase(testing.AsyncTestCase):
     @testing.gen_test
     def test_add_1(self):
         "Test without boost"
-        res_doc = yield self.solr.search('doc')
-        res_exa = yield self.solr.search('example')
+        res_doc = yield self.solr.search('doc', df='title')
+        res_exa = yield self.solr.search('example', df='title')
 
         self.assertEqual(len(res_doc), 3)
         self.assertEqual(len(res_exa), 2)
@@ -490,8 +493,8 @@ class SolrTestCase(testing.AsyncTestCase):
             },
         ])
 
-        res_doc = yield self.solr.search('doc')
-        res_exa = yield self.solr.search('example')
+        res_doc = yield self.solr.search('doc', df='title')
+        res_exa = yield self.solr.search('example', df='title')
 
         self.assertEqual(len(res_doc), 5)  # there are 2 instead of 5
         self.assertEqual(len(res_exa), 3)  # there are 1 instead of 3
@@ -499,7 +502,7 @@ class SolrTestCase(testing.AsyncTestCase):
     @testing.gen_test
     def test_add_2(self):
         "Test add with boost"
-        self.assertEqual(len((yield self.solr.search('doc'))), 3)  # there are 5 instead of 3
+        self.assertEqual(len((yield self.solr.search('doc', df='title'))), 3)  # there are 5 instead of 3
 
         yield self.solr.add([{'id': 'doc_6', 'title': 'Important doc'}],
                             boost={'title': 10.0})
@@ -507,20 +510,20 @@ class SolrTestCase(testing.AsyncTestCase):
         yield self.solr.add([{'id': 'doc_7', 'title': 'Spam doc doc'}],
                             boost={'title': 0})
 
-        res = yield self.solr.search('doc')
+        res = yield self.solr.search('doc', df='title')
         self.assertEqual(len(res), 5)  # there are 2 instead of 5
         self.assertEqual('doc_6', res.docs[0]['id'])  # this passes
 
     @testing.gen_test
     def test_field_update(self):
-        originalDocs = yield self.solr.search('doc')
+        originalDocs = yield self.solr.search('doc', df='title')
         self.assertEqual(len(originalDocs), 3)
         updateList = []
         for i, doc in enumerate(originalDocs):
             updateList.append( {'id': doc['id'], 'popularity': 5} )
         yield self.solr.add(updateList, fieldUpdates={'popularity': 'inc'})
 
-        updatedDocs = yield self.solr.search('doc')
+        updatedDocs = yield self.solr.search('doc', df='title')
         self.assertEqual(len(updatedDocs), 3)
         for i, (originalDoc, updatedDoc) in enumerate(zip(originalDocs, updatedDocs)):
             self.assertEqual(len(updatedDoc.keys()), len(originalDoc.keys()))
@@ -540,14 +543,14 @@ class SolrTestCase(testing.AsyncTestCase):
             },
         ])
 
-        originalDocs = yield self.solr.search('multivalued')
+        originalDocs = yield self.solr.search('multivalued', df='title')
         self.assertEqual(len(originalDocs), 2)
         updateList = []
         for i, doc in enumerate(originalDocs):
             updateList.append( {'id': doc['id'], 'word_ss': ['epsilon', 'gamma']} )
         yield self.solr.add(updateList, fieldUpdates={'word_ss': 'add'})
 
-        updatedDocs = yield self.solr.search('multivalued')
+        updatedDocs = yield self.solr.search('multivalued', df='title')
         self.assertEqual(len(updatedDocs), 2)
         for i, (originalDoc, updatedDoc) in enumerate(zip(originalDocs, updatedDocs)):
             self.assertEqual(len(updatedDoc.keys()), len(originalDoc.keys()))
@@ -556,15 +559,15 @@ class SolrTestCase(testing.AsyncTestCase):
 
     @testing.gen_test
     def test_delete(self):
-        self.assertEqual(len((yield self.solr.search('doc'))), 3)
+        self.assertEqual(len((yield self.solr.search('doc', df='title'))), 3)
         yield self.solr.delete(id='doc_1')
-        self.assertEqual(len((yield self.solr.search('doc'))), 2)
+        self.assertEqual(len((yield self.solr.search('doc', df='title'))), 2)
         yield self.solr.delete(q='price:[0 TO 15]')
-        self.assertEqual(len((yield self.solr.search('doc'))), 1)
+        self.assertEqual(len((yield self.solr.search('doc', df='title'))), 1)
 
-        self.assertEqual(len((yield self.solr.search('*:*'))), 1)
+        self.assertEqual(len((yield self.solr.search('*:*', df='title'))), 1)
         yield self.solr.delete(q='*:*')
-        self.assertEqual(len((yield self.solr.search('*:*'))), 0)
+        self.assertEqual(len((yield self.solr.search('*:*', df='title'))), 0)
 
         # TODO: figure out how to make these errors work
         # Need at least one.
@@ -574,30 +577,30 @@ class SolrTestCase(testing.AsyncTestCase):
 
     @testing.gen_test
     def test_commit(self):
-        self.assertEqual(len((yield self.solr.search('doc'))), 3)
+        self.assertEqual(len((yield self.solr.search('doc', df='title'))), 3)
         yield self.solr.add([
             {
                 'id': 'doc_6',
                 'title': 'Newly added doc',
             }
         ], commit=False)
-        self.assertEqual(len((yield self.solr.search('doc'))), 3)
+        self.assertEqual(len((yield self.solr.search('doc', df='title'))), 3)
         yield self.solr.commit()
-        self.assertEqual(len((yield self.solr.search('doc'))), 4)
+        self.assertEqual(len((yield self.solr.search('doc', df='title'))), 4)
 
     @testing.gen_test
     def test_optimize(self):
         # Make sure it doesn't blow up. Side effects are hard to measure. :/
-        self.assertEqual(len((yield self.solr.search('doc'))), 3)
+        self.assertEqual(len((yield self.solr.search('doc', df='title'))), 3)
         yield self.solr.add([
             {
                 'id': 'doc_6',
                 'title': 'Newly added doc',
             }
         ], commit=False)
-        self.assertEqual(len((yield self.solr.search('doc'))), 3)
+        self.assertEqual(len((yield self.solr.search('doc', df='title'))), 3)
         yield self.solr.optimize()
-        self.assertEqual(len((yield self.solr.search('doc'))), 4)
+        self.assertEqual(len((yield self.solr.search('doc', df='title'))), 4)
 
     def test_extract(self):
         "This method is not implemented with Tornado yet."
