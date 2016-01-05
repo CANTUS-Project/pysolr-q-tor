@@ -3,12 +3,14 @@ try:
 except ImportError:
     from distutils.core import setup
 
+import pysolrtornado  # for "author" and "version"
+
 
 setup(
-    name="pysolr-tornado",
-    version="3.3.3a1",
-    description="Lightweight python wrapper for Apache Solr. Based on 'pysolr' but with Tornado!",
-    author='Christopher Antila',
+    name='pysolr-tornado',
+    version='.'.join(map(str, pysolrtornado.__version__)),
+    description='Lightweight python wrapper for Apache Solr. Based on "pysolr" but with Tornado!',
+    author=pysolrtornado.__author__,
     author_email='christopher@antila.ca',
     long_description=open('README.rst', 'r').read(),
     py_modules=[

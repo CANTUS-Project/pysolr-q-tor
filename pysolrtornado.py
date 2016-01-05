@@ -57,7 +57,7 @@ except NameError:
 
 __author__ = 'Daniel Lindsley, Joseph Kocherhans, Jacob Kaplan-Moss, Christopher Antila'
 __all__ = ['Solr']
-__version__ = (3, 3, 0)
+__version__ = (3, 3, '3a1')
 
 
 def get_version():
