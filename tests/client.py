@@ -61,7 +61,13 @@ class UtilsTestCase(unittest.TestCase):
 
 class ResultsTestCase(unittest.TestCase):
     def test_init(self):
-        default_results = Results([{'id': 1}, {'id': 2}], 2)
+        default_results = Results({
+            'response': {
+                'docs': [{'id': 1}, {'id': 2}],
+                'numFound': 2,
+            },
+        })
+
         self.assertEqual(default_results.docs, [{'id': 1}, {'id': 2}])
         self.assertEqual(default_results.hits, 2)
         self.assertEqual(default_results.highlighting, {})
@@ -72,18 +78,23 @@ class ResultsTestCase(unittest.TestCase):
         self.assertEqual(default_results.debug, {})
         self.assertEqual(default_results.grouped, {})
 
-        full_results = Results(
-            docs=[{'id': 1}, {'id': 2}, {'id': 3}],
-            hits=3,
+        full_results = Results({
+            'response': {
+                'docs': [{'id': 1}, {'id': 2}, {'id': 3}],
+                'numFound': 3,
+            },
             # Fake data just to check assignments.
-            highlighting='hi',
-            facets='fa',
-            spellcheck='sp',
-            stats='st',
-            qtime='0.001',
-            debug=True,
-            grouped=['a']
-        )
+            'highlighting': 'hi',
+            'facet_counts': 'fa',
+            'spellcheck': 'sp',
+            'stats': 'st',
+            'responseHeader': {
+                'QTime': '0.001',
+            },
+            'debug': True,
+            'grouped': ['a'],
+        })
+
         self.assertEqual(full_results.docs, [{'id': 1}, {'id': 2}, {'id': 3}])
         self.assertEqual(full_results.hits, 3)
         self.assertEqual(full_results.highlighting, 'hi')
@@ -95,14 +106,29 @@ class ResultsTestCase(unittest.TestCase):
         self.assertEqual(full_results.grouped, ['a'])
 
     def test_len(self):
-        small_results = Results([{'id': 1}, {'id': 2}], 2)
+        small_results = Results({
+            'response': {
+                'docs': [{'id': 1}, {'id': 2}],
+                'numFound': 2,
+            },
+        })
         self.assertEqual(len(small_results), 2)
 
-        wrong_hits_results = Results([{'id': 1}, {'id': 2}, {'id': 3}], 7)
+        wrong_hits_results = Results({
+            'response': {
+                'docs': [{'id': 1}, {'id': 2}, {'id': 3}],
+                'numFound': 7,
+            },
+        })
         self.assertEqual(len(wrong_hits_results), 3)
 
     def test_iter(self):
-        long_results = Results([{'id': 1}, {'id': 2}, {'id': 3}], 3)
+        long_results = Results({
+            'response': {
+                'docs': [{'id': 1}, {'id': 2}, {'id': 3}],
+                'numFound': 7,
+            },
+        })
 
         to_iter = list(long_results)
         self.assertEqual(to_iter[0], {'id': 1})
@@ -152,6 +178,14 @@ class SolrTestCase(unittest.TestCase):
         self.assertTrue(isinstance(self.solr.decoder, json.JSONDecoder))
         self.assertEqual(self.solr.timeout, 2)
 
+    def test_custom_results_class(self):
+        solr = Solr('http://localhost:8983/solr/core0', results_cls=dict)
+
+        results = solr.search(q='*:*')
+        assert isinstance(results, dict)
+        assert 'responseHeader' in results
+        assert 'response' in results
+
     def test__create_full_url(self):
         # Nada.
         self.assertEqual(self.solr._create_full_url(path=''), self.solr_url)
@@ -180,6 +214,13 @@ class SolrTestCase(unittest.TestCase):
         self.assertRaises(SolrError, self.solr._send_request, 'get', 'select/?q=doc&wt=json')
         self.solr.url = old_url
 
+        # Test bad core as well
+        self.solr.url = 'http://localhost:8983/solr/bad_core'
+        try:
+            self.assertRaises(SolrError, self.solr._send_request, 'get', 'select/?q=doc&wt=json')
+        finally:
+            self.solr.url = old_url
+
     def test__select(self):
         # Short params.
         resp_body = self.solr._select({'q': 'doc'})
@@ -191,6 +232,13 @@ class SolrTestCase(unittest.TestCase):
         resp_data = json.loads(resp_body)
         self.assertEqual(resp_data['response']['numFound'], 0)
         self.assertEqual(len(resp_data['responseHeader']['params']['q']), 3 * 1024)
+
+        # Test Deep Pagination CursorMark
+        resp_body = self.solr._select({'q': '*', 'cursorMark':'*', 'sort':'id desc', 'start':0, 'rows': 2})
+        resp_data = json.loads(resp_body)
+        self.assertEqual(len(resp_data['response']['docs']), 2)
+        self.assertIn('nextCursorMark', resp_data)
+
 
     def test__mlt(self):
         resp_body = self.solr._mlt({'q': 'id:doc_1', 'mlt.fl': 'title'})

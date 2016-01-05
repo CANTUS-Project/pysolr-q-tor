@@ -2,7 +2,11 @@
 
 set -e
 
-SOLR_VERSION=4.7.2
+SOLR_VERSION=4.10.4
+
+cd $(dirname $0)
+
+export TEST_ROOT=$(pwd)
 
 mkdir -p "test-solr-server"
 cd "test-solr-server"
@@ -21,7 +25,8 @@ if [ -f ${SOLR_ARCHIVE} ]; then
 fi
 
 if [ ! -f ${SOLR_ARCHIVE} ]; then
-    python get-solr-download-url.py $SOLR_VERSION | xargs curl -Lo $SOLR_ARCHIVE
+    SOLR_DOWNLOAD_URL=$(python get-solr-download-url.py $SOLR_VERSION)
+    curl -Lo $SOLR_ARCHIVE ${SOLR_DOWNLOAD_URL} || (echo "Unable to download ${SOLR_DOWNLOAD_URL}"; exit 2)
 fi
 
 echo "Extracting Solr ${SOLR_VERSION} to ${SOLR_DIR}/"
@@ -45,7 +50,7 @@ fi
 perl -p -i -e 's|<!-- A Robust Example|<!-- More like this request handler -->\n  <requestHandler name="/mlt" class="solr.MoreLikeThisHandler" />\n\n\n  <!-- A Robust Example|'g server/solr/collection1/conf/solrconfig.xml
 
 echo 'Starting server'
-# We use exec to allow process monitors like run-tests.py to correctly kill the
+# We use exec to allow process monitors to correctly kill the
 # actual Java process rather than this launcher script:
 cd server
 exec java -Djava.awt.headless=true -Dapple.awt.UIElement=true -jar start.jar --module=http
