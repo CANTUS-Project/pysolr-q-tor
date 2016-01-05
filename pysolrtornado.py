@@ -13,6 +13,7 @@ from xml.parsers.expat import ExpatError
 
 from tornado import gen, httpclient
 from tornado import ioloop as ioloop_module
+from tornado import log as tornado_log
 
 try:
     from xml.etree import ElementTree as ET
@@ -72,11 +73,8 @@ class NullHandler(logging.Handler):
         pass
 
 
-# Add the ``NullHandler`` to avoid logging by default while still allowing
-# others to attach their own handlers.
-LOG = logging.getLogger('pysolr')
-h = NullHandler()
-LOG.addHandler(h)
+# set up logging with Tornado
+LOG = tornado_log.app_log
 
 # For debugging...
 if os.environ.get("DEBUG_PYSOLR", "").lower() in ("true", "1"):
