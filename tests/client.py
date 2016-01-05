@@ -179,7 +179,7 @@ class SolrTestCase(unittest.TestCase):
         self.assertEqual(self.solr.timeout, 2)
 
     def test_custom_results_class(self):
-        solr = Solr('http://localhost:8983/solr/core0', results_cls=dict)
+        solr = Solr(self.solr_url, results_cls=dict)
 
         results = solr.search(q='*:*')
         assert isinstance(results, dict)
