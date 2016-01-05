@@ -2,7 +2,6 @@
 build
 dist/
 MANIFEST
-solr4
 env
 env3
 pysolr.egg-info/
@@ -10,3 +9,5 @@ pysolr.egg-info/
 solr*.tgz
 test-solr.std???.log
 pysolr_tornado.egg-info*
+test-solr-server
+*.log

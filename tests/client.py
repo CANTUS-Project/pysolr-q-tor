@@ -6,10 +6,12 @@ import subprocess
 import sys
 
 from tornado import httpclient, testing
+from tornado import ioloop as ioloop_module
 
 from pysolrtornado import (Solr, Results, SolrError, unescape_html, safe_urlencode,
                            force_unicode, force_bytes, sanitize, json, ET, IS_PY3,
                            clean_xml_string)
+
 
 try:
     import unittest2 as unittest
@@ -62,7 +64,13 @@ class UtilsTestCase(unittest.TestCase):
 
 class ResultsTestCase(unittest.TestCase):
     def test_init(self):
-        default_results = Results([{'id': 1}, {'id': 2}], 2)
+        default_results = Results({
+            'response': {
+                'docs': [{'id': 1}, {'id': 2}],
+                'numFound': 2,
+            },
+        })
+
         self.assertEqual(default_results.docs, [{'id': 1}, {'id': 2}])
         self.assertEqual(default_results.hits, 2)
         self.assertEqual(default_results.highlighting, {})
@@ -73,18 +81,23 @@ class ResultsTestCase(unittest.TestCase):
         self.assertEqual(default_results.debug, {})
         self.assertEqual(default_results.grouped, {})
 
-        full_results = Results(
-            docs=[{'id': 1}, {'id': 2}, {'id': 3}],
-            hits=3,
+        full_results = Results({
+            'response': {
+                'docs': [{'id': 1}, {'id': 2}, {'id': 3}],
+                'numFound': 3,
+            },
             # Fake data just to check assignments.
-            highlighting='hi',
-            facets='fa',
-            spellcheck='sp',
-            stats='st',
-            qtime='0.001',
-            debug=True,
-            grouped=['a']
-        )
+            'highlighting': 'hi',
+            'facet_counts': 'fa',
+            'spellcheck': 'sp',
+            'stats': 'st',
+            'responseHeader': {
+                'QTime': '0.001',
+            },
+            'debug': True,
+            'grouped': ['a'],
+        })
+
         self.assertEqual(full_results.docs, [{'id': 1}, {'id': 2}, {'id': 3}])
         self.assertEqual(full_results.hits, 3)
         self.assertEqual(full_results.highlighting, 'hi')
@@ -96,14 +109,29 @@ class ResultsTestCase(unittest.TestCase):
         self.assertEqual(full_results.grouped, ['a'])
 
     def test_len(self):
-        small_results = Results([{'id': 1}, {'id': 2}], 2)
+        small_results = Results({
+            'response': {
+                'docs': [{'id': 1}, {'id': 2}],
+                'numFound': 2,
+            },
+        })
         self.assertEqual(len(small_results), 2)
 
-        wrong_hits_results = Results([{'id': 1}, {'id': 2}, {'id': 3}], 7)
+        wrong_hits_results = Results({
+            'response': {
+                'docs': [{'id': 1}, {'id': 2}, {'id': 3}],
+                'numFound': 7,
+            },
+        })
         self.assertEqual(len(wrong_hits_results), 3)
 
     def test_iter(self):
-        long_results = Results([{'id': 1}, {'id': 2}, {'id': 3}], 3)
+        long_results = Results({
+            'response': {
+                'docs': [{'id': 1}, {'id': 2}, {'id': 3}],
+                'numFound': 7,
+            },
+        })
 
         to_iter = list(long_results)
         self.assertEqual(to_iter[0], {'id': 1})
@@ -114,84 +142,59 @@ class ResultsTestCase(unittest.TestCase):
 class SolrTestCase(testing.AsyncTestCase):
     def setUp(self):
         super(SolrTestCase, self).setUp()
-        self.server_url = 'http://localhost:8983/solr/core0'
-        self.timeout = 30  # DEBUG
-        self.solr = Solr(self.server_url, timeout=self.timeout, ioloop=self.io_loop)
-        self.docs = [
-            {
-                'id': 'doc_1',
-                'title': 'Example doc 1',
-                'price': 12.59,
-                'popularity': 10,
-            },
-            {
-                'id': 'doc_2',
-                'title': 'Another example ☃ doc 2',
-                'price': 13.69,
-                'popularity': 7,
-            },
-            {
-                'id': 'doc_3',
-                'title': 'Another thing',
-                'price': 2.35,
-                'popularity': 8,
-            },
-            {
-                'id': 'doc_4',
-                'title': 'doc rock',
-                'price': 99.99,
-                'popularity': 10,
-            },
-            {
-                'id': 'doc_5',
-                'title': 'Boring',
-                'price': 1.12,
-                'popularity': 2,
-            },
-        ]
+        self.solr_url = 'http://localhost:8983/solr/collection1'
+        # Short timeouts.
+        self.timeout = 2
+        self.solr = Solr(self.solr_url, timeout=self.timeout, ioloop=self.io_loop)
+        self.docs = u'''
+            {"add": {"doc": {"id": "doc_1", "title": "Example doc 1", "price": "12.59", "popularity": "10"}},
+             "add": {"doc": {"id": "doc_2", "title": "Another example ☃ doc 2", "price": "13.69", "popularity": "7"}},
+             "add": {"doc": {"id": "doc_3", "title": "Another thing", "price": "2.35", "popularity": "8"}},
+             "add": {"doc": {"id": "doc_4", "title": "doc rock", "price": "99.99", "popularity": "10"}},
+             "add": {"doc": {"id": "doc_5", "title": "Boring", "price": "1.12", "popularity": "2"}}
+            }'''
+        self.docs = self.docs.encode('utf-8')
 
-        # Clear it.
-        # NB: this must be synchronous or else "post.sh" might be called before the delete command
-        #     is run, or worse, the delete command could be run during a test.
-        if self.clear_solr() != 200:
-            self.fail('Could not clear Solr before the test.')
-
-        # Index our docs.
+        # Reindex all the data. It's important to do this in the setUp() method so that any test
+        # affected by an improperly-refreshed Solr instance will fail. If we did clean-up in the
+        # tearDown() method, even if we did a fail() there, we would never know which tests were
+        # affected by an improperly-refreshed Solr instance.
+        client = httpclient.HTTPClient()
         try:
-            # TODO: make a direct Solr request
-            subprocess.check_call(['tests/post.sh', 'tests/test_data.xml'], stdout=subprocess.DEVNULL)
-        except subprocess.CalledProcessError as cpe:
-            self.fail(cpe)
-
-    def clear_solr(self):
-        "Clear the test Solr instance by deleting all its records. Synchronous method."
-        synchttp = httpclient.HTTPClient()
-        delete_body = force_bytes('<delete><query>*:*</query></delete>')
-        headers = {'Content-type': 'text/xml; charset=utf-8'}
-        return synchttp.fetch('{}/update?commit=true'.format(self.server_url),
-                              method='POST',
-                              body=delete_body,
-                              headers=headers,
-                              request_timeout=self.timeout).code
+            client.fetch('{}/update?commit=true'.format(self.solr_url),
+                         method='POST',
+                         body=b'<delete><query>*:*</query></delete>',
+                         headers={'Content-type': 'text/xml; charset=utf-8'})
+            client.fetch('{}/update?commit=true'.format(self.solr_url),
+                         method='POST',
+                         body=self.docs,
+                         headers={'Content-type': 'application/json; charset=utf-8'})
+        except httpclient.HTTPError as err:
+            self.fail('Unable to refresh the Solr instace (HTTP code {})'.format(err.code))
+        finally:
+            client.close()
 
     def test_init(self):
-        default_solr = Solr(self.server_url)
-        self.assertEqual(default_solr.url, self.server_url)
+        default_solr = Solr(self.solr_url)
+        self.assertEqual(default_solr.url, self.solr_url)
         self.assertTrue(isinstance(default_solr.decoder, json.JSONDecoder))
         self.assertEqual(default_solr.timeout, 60)
+        self.assertIs(default_solr._ioloop, ioloop_module.IOLoop.instance())
 
-        self.assertEqual(self.solr.url, self.server_url)
+        self.assertEqual(self.solr.url, self.solr_url)
         self.assertTrue(isinstance(self.solr.decoder, json.JSONDecoder))
         self.assertEqual(self.solr.timeout, self.timeout)
         self.assertIs(self.solr._ioloop, self.io_loop)
 
     def test__create_full_url(self):
         # Nada.
-        self.assertEqual(self.solr._create_full_url(path=''), 'http://localhost:8983/solr/core0')
+        self.assertEqual(self.solr._create_full_url(path=''), self.solr_url)
         # Basic path.
-        self.assertEqual(self.solr._create_full_url(path='pysolr_tests'), 'http://localhost:8983/solr/core0/pysolr_tests')
+        self.assertEqual(self.solr._create_full_url(path='pysolr_tests'),
+                         '{}/pysolr_tests'.format(self.solr_url))
         # Leading slash (& making sure we don't touch the trailing slash).
-        self.assertEqual(self.solr._create_full_url(path='/pysolr_tests/select/?whatever=/'), 'http://localhost:8983/solr/core0/pysolr_tests/select/?whatever=/')
+        self.assertEqual(self.solr._create_full_url(path='/pysolr_tests/select/?whatever=/'),
+                         '{}/pysolr_tests/select/?whatever=/'.format(self.solr_url))
 
     @testing.gen_test
     def test__send_request_1(self):
@@ -199,7 +202,7 @@ class SolrTestCase(testing.AsyncTestCase):
         resp_body = yield self.solr._send_request('GET', 'select/?q=doc&wt=json')
         self.assertTrue('"numFound":3' in resp_body)
 
-    @testing.gen_test()#timeout=480)
+    @testing.gen_test()
     def test__send_request_2(self):
         "Test a lowercase method & a body."
         resp_body = yield self.solr._send_request('GET', 'select/?q=doc&wt=json')
@@ -256,11 +259,13 @@ class SolrTestCase(testing.AsyncTestCase):
         # we'll roll our own mock for this test
         def mock_fetch(*args, **kwargs):
             raise ConnectionRefusedError('whatever')
+        original_fetch = self.solr._client.fetch
         self.solr._client.fetch = mock_fetch
         try:
             yield self.solr._send_request('get', 'intersect/')
         except SolrError as sol_err:
             self.assertTrue(sol_err.args[0].startswith(Solr._FETCH_CONN_ERROR[:20]))
+        self.solr._client.fetch = original_fetch
 
     @testing.gen_test
     def test__send_request_8(self):
@@ -282,6 +287,12 @@ class SolrTestCase(testing.AsyncTestCase):
         resp_data = json.loads(resp_body)
         self.assertEqual(resp_data['response']['numFound'], 0)
         self.assertEqual(len(resp_data['responseHeader']['params']['q']), 3 * 1024)
+
+        # Test Deep Pagination CursorMark
+        resp_body = yield self.solr._select({'q': '*', 'cursorMark':'*', 'sort':'id desc', 'start':0, 'rows': 2})
+        resp_data = json.loads(resp_body)
+        self.assertEqual(len(resp_data['response']['docs']), 2)
+        self.assertIn('nextCursorMark', resp_data)
 
     @testing.gen_test
     def test__mlt(self):
@@ -426,6 +437,15 @@ class SolrTestCase(testing.AsyncTestCase):
         self.assertTrue(results.qtime is not None)
         # TODO: Can't get these working in my test setup.
         # self.assertEqual(results.grouped, '')
+
+    @testing.gen_test
+    def test_search_3(self):
+        "With a custom results class."
+        solr = Solr(self.solr_url, ioloop=self.io_loop, results_cls=dict)
+        results = yield solr.search(q='*:*')
+        self.assertIsInstance(results, dict)
+        self.assertTrue('responseHeader' in results)
+        self.assertTrue('response' in results)
 
     @testing.gen_test
     def test_more_like_this(self):

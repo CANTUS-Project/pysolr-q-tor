@@ -9,11 +9,11 @@ import time
 from tornado import httpclient
 
 RETRY_EVERY = 1  # seconds
-RETRY_DURATION = 60  # seconds
+RETRY_DURATION = 30  # seconds
 
 
 def start_solr():
-    solr_proc = subprocess.Popen("./start-test-solr.sh",
+    solr_proc = subprocess.Popen("./start-solr-test-server.sh",
                                  stdout=open("test-solr.stdout.log", "wb"),
                                  stderr=open("test-solr.stderr.log", "wb"))
 
@@ -23,7 +23,10 @@ def start_solr():
     while True:
         my_client = httpclient.HTTPClient()
         try:
-            status_code = my_client.fetch("http://localhost:8983/solr/core0/select/?q=startup").code
+            status_code = my_client.fetch("http://localhost:8983/solr/collection1/select/?q=startup?df=id").code
+        except httpclient.HTTPError as err:
+            print('Tornado reports an HTTP error while starting Solr: response code {}'.format(err.code))
+            status_code = err.code
         except:
             status_code = 0
         finally:

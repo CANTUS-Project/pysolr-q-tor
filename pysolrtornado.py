@@ -218,18 +218,70 @@ class SolrError(Exception):
 
 
 class Results(object):
-    def __init__(self, docs, hits, highlighting=None, facets=None,
-                 spellcheck=None, stats=None, qtime=None, debug=None,
-                 grouped=None):
-        self.docs = docs
-        self.hits = hits
-        self.highlighting = highlighting or {}
-        self.facets = facets or {}
-        self.spellcheck = spellcheck or {}
-        self.stats = stats or {}
-        self.qtime = qtime
-        self.debug = debug or {}
-        self.grouped = grouped or {}
+    """
+    Default results class for wrapping decoded (from JSON) solr responses.
+
+    Required ``decoded`` argument must be a Solr response dictionary.
+    Individual documents can be retrieved either through ``docs`` attribute
+    or by iterating over results instance.
+
+    Example::
+
+        results = Results({
+            'response': {
+                'docs': [{'id': 1}, {'id': 2}, {'id': 3}],
+                'numFound': 3,
+            }
+        })
+
+        # this:
+        for doc in results:
+            print doc
+
+        # ... is equivalent to:
+        for doc in results.docs:
+            print doc
+
+        # also:
+        list(results) == results.docs
+
+    Note that ``Results`` object does not support indexing and slicing. If you
+    need to retrieve documents by index just use ``docs`` attribute.
+
+    Other response metadata (debug, highlighting, qtime, etc.) are available
+    as attributes. Note that not all response keys may be covered for current
+    version of pysolr. If you're sure that your queries return
+    something that is missing you can easily extend ``Results``
+    and provide it as a custom results class to ``pysolr.Solr``.
+
+    Example::
+
+        import pysolr
+
+        class CustomResults(pysolr.Results):
+            def __init__(self, decoded):
+                 self.some_new_attribute = decoded.get('not_covered_key' None)
+                 super(self, CustomResults).__init__(decoded)
+
+        solr = Solr('<solr url>', response_cls=CustomResults)
+
+    """
+
+    def __init__(self, decoded):
+        # main response part of decoded Solr response
+        response_part = decoded.get('response') or {}
+        self.docs = response_part.get('docs', ())
+        self.hits = response_part.get('numFound', 0)
+
+        # other response metadata
+        self.debug = decoded.get('debug', {})
+        self.highlighting = decoded.get('highlighting', {})
+        self.facets = decoded.get('facet_counts', {})
+        self.spellcheck = decoded.get('spellcheck', {})
+        self.stats = decoded.get('stats', {})
+        self.qtime = decoded.get('responseHeader', {}).get('QTime', None)
+        self.grouped = decoded.get('grouped', {})
+        self.nextCursorMark = decoded.get('nextCursorMark', None)
 
     def __len__(self):
         return len(self.docs)
@@ -254,11 +306,19 @@ class Solr(object):
     Optionally accepts ``ioloop`` used for the AsyncHTTPClient. **But you should really include it
     because I don't know if it will work without being given that... TBD.**
 
+    Optionally accepts ``results_cls`` that specifies class of results object
+    returned by ``.search()`` and ``.more_like_this()`` methods.
+    Default is ``pysolr.Results``.
+
     Usage::
 
         solr = pysolr.Solr('http://localhost:8983/solr')
         # With a 10 second timeout.
+
         solr = pysolr.Solr('http://localhost:8983/solr', timeout=10)
+
+        # with a dict as a default results class instead of pysolr.Results
+        solr = pysolr.Solr('http://localhost:8983/solr', results_cls=dict)
 
     """
 
@@ -270,13 +330,14 @@ class Solr(object):
     _FETCH_KEY_ERROR = 'Unknown HTTP method "{}"'
     _FETCH_CONN_ERROR = 'Connection error with {}'
 
-    def __init__(self, url, decoder=None, timeout=None, ioloop=None):
+    def __init__(self, url, decoder=None, timeout=None, ioloop=None, results_cls=None):
         self.decoder = decoder or json.JSONDecoder()
         self.url = url
         self.timeout = timeout or 60
         self.log = self._get_log()
         self._ioloop = ioloop or ioloop_module.IOLoop.instance()
         self._client = httpclient.AsyncHTTPClient(self._ioloop)
+        self.results_cls = results_cls or Results
 
     def _get_log(self):
         return LOG
@@ -341,6 +402,7 @@ class Solr(object):
             raise SolrError(Solr._FETCH_CONN_ERROR.format(url))
         except httpclient.HTTPError as the_error:
             # Solr returned an error
+            # TODO: this fails with a 599 (timeout, or something else when there was no HTTP response at all)
             error_message = '{}: {}'.format(the_error.code, the_error.response.reason)
             self.log.error(error_message, extra={'data': {'headers': the_error.response,
                                                           'response': the_error.response}})
@@ -448,6 +510,9 @@ class Solr(object):
         full_html = ''
         dom_tree = None
 
+        # In Python3, response can be made of bytes
+        if IS_PY3 and hasattr(response, 'decode'):
+            response = response.decode()
         if response.startswith('<?xml'):
             # Try a strict XML parse
             try:
@@ -623,6 +688,9 @@ class Solr(object):
         Optionally accepts ``**kwargs`` for additional options to be passed
         through the Solr URL.
 
+        Returns ``self.results_cls`` class object (defaults to
+        ``pysolr.Results``)
+
         Usage::
 
             # All docs.
@@ -638,41 +706,22 @@ class Solr(object):
         params = {'q': q}
         params.update(kwargs)
         response = yield self._select(params)
+        decoded = self.decoder.decode(response)
 
-        # TODO: make result retrieval lazy and allow custom result objects
-        result = self.decoder.decode(response)
-        result_kwargs = {}
-
-        if result.get('debug'):
-            result_kwargs['debug'] = result['debug']
-
-        if result.get('highlighting'):
-            result_kwargs['highlighting'] = result['highlighting']
-
-        if result.get('facet_counts'):
-            result_kwargs['facets'] = result['facet_counts']
-
-        if result.get('spellcheck'):
-            result_kwargs['spellcheck'] = result['spellcheck']
-
-        if result.get('stats'):
-            result_kwargs['stats'] = result['stats']
-
-        if 'QTime' in result.get('responseHeader', {}):
-            result_kwargs['qtime'] = result['responseHeader']['QTime']
-
-        if result.get('grouped'):
-            result_kwargs['grouped'] = result['grouped']
-
-        response = result.get('response') or {}
-        numFound = response.get('numFound', 0)
-        self.log.debug("Found '%s' search results.", numFound)
-        return Results(response.get('docs', ()), numFound, **result_kwargs)
+        self.log.debug(
+            "Found '%s' search results.",
+            # cover both cases: there is no response key or value is None
+            (decoded.get('response', {}) or {}).get('numFound', 0)
+        )
+        return self.results_cls(decoded)
 
     @gen.coroutine
     def more_like_this(self, q, mltfl, **kwargs):
         """
         Finds and returns results similar to the provided query.
+
+        Returns ``self.results_cls`` class object (defaults to
+        ``pysolr.Results``)
 
         Requires Solr 1.3+.
 
@@ -687,17 +736,14 @@ class Solr(object):
         }
         params.update(kwargs)
         response = yield self._mlt(params)
+        decoded = self.decoder.decode(response)
 
-        result = self.decoder.decode(response)
-
-        if result['response'] is None:
-            result['response'] = {
-                'docs': [],
-                'numFound': 0,
-            }
-
-        self.log.debug("Found '%s' MLT results.", result['response']['numFound'])
-        return Results(result['response']['docs'], result['response']['numFound'])
+        self.log.debug(
+            "Found '%s' MLT results.",
+            # cover both cases: there is no response key or value is None
+            (decoded.get('response', {}) or {}).get('numFound', 0)
+        )
+        return self.results_cls(decoded)
 
     @gen.coroutine
     def suggest_terms(self, fields, prefix, **kwargs):
