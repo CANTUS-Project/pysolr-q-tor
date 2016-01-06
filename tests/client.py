@@ -138,6 +138,27 @@ class ResultsTestCase(unittest.TestCase):
         self.assertEqual(to_iter[1], {'id': 2})
         self.assertEqual(to_iter[2], {'id': 3})
 
+    def test_getitem(self):
+        results = Results({
+            'response': {
+                'docs': [{'id': 1}, {'id': 2}, {'id': 3}],
+                'numFound': 3,
+            },
+        })
+        for i in range(3):
+            self.assertEqual(results[i], results.docs[i])
+
+    def test_bool(self):
+        results = Results({
+            'response': {
+                'docs': [{'id': 1}, {'id': 2}, {'id': 3}],
+                'numFound': 7,
+            },
+        })
+        self.assertTrue(results)
+        empty_results = Results({})
+        self.assertFalse(empty_results)
+
 
 class SolrTestCase(testing.AsyncTestCase):
     def setUp(self):

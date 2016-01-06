@@ -58,7 +58,7 @@ except NameError:
 
 __author__ = 'Daniel Lindsley, Joseph Kocherhans, Jacob Kaplan-Moss, Christopher Antila'
 __all__ = ['Solr']
-__version__ = (3, 3, 4)
+__version__ = (3, 99, 0)
 
 
 def get_version():
@@ -219,9 +219,9 @@ class Results(object):
     """
     Default results class for wrapping decoded (from JSON) solr responses.
 
-    Required ``decoded`` argument must be a Solr response dictionary.
-    Individual documents can be retrieved either through ``docs`` attribute
-    or by iterating over results instance.
+    Required ``decoded`` argument must be a Solr response dictionary. Individual documents can be
+    retrieved either through the :attr:`Results.docs` attribute, through indexed access, or through
+    iteration.
 
     Example::
 
@@ -232,44 +232,53 @@ class Results(object):
             }
         })
 
-        # this:
+        # You can iterate the "docs" by simply iterating the object itself, so this:
         for doc in results:
-            print doc
+            print(str(doc))
 
-        # ... is equivalent to:
+        # ... is equivalent to this:
         for doc in results.docs:
-            print doc
+            print(str(doc))
 
-        # also:
+        # And these are equal too.
         list(results) == results.docs
 
-    Note that ``Results`` object does not support indexing and slicing. If you
-    need to retrieve documents by index just use ``docs`` attribute.
+        # You can also do indexed access.
+        results[1] == results.docs[1]
 
-    Other response metadata (debug, highlighting, qtime, etc.) are available
-    as attributes. Note that not all response keys may be covered for current
-    version of pysolr. If you're sure that your queries return
-    something that is missing you can easily extend ``Results``
-    and provide it as a custom results class to ``pysolr.Solr``.
+        # You can also test for truth as you would expect:
+        bool(results) == True
 
-    Example::
+        # But with zero documents, it's false:
+        bool(Results({})) == False
 
-        import pysolr
+    **Additional Response Keys**
 
-        class CustomResults(pysolr.Results):
+    The following additional data members are available:
+
+    - hits
+    - debug
+    - highlighting
+    - facets
+    - spellcheck
+    - stats
+    - qtime
+    - grouped
+    - nextCursorMark
+
+    You may add more attributes by extending the :class:`Results` class. For example:::
+
+        class CustomResults(pysolrtornado.Results):
             def __init__(self, decoded):
-                 self.some_new_attribute = decoded.get('not_covered_key' None)
                  super(self, CustomResults).__init__(decoded)
-
-        solr = Solr('<solr url>', response_cls=CustomResults)
-
+                 self.some_new_attribute = decoded.get('not_covered_key' None)
     """
 
     def __init__(self, decoded):
         # main response part of decoded Solr response
         response_part = decoded.get('response') or {}
         self.docs = response_part.get('docs', ())
-        self.hits = response_part.get('numFound', 0)
+        self.hits = int(response_part.get('numFound', 0))
 
         # other response metadata
         self.debug = decoded.get('debug', {})
@@ -280,6 +289,9 @@ class Results(object):
         self.qtime = decoded.get('responseHeader', {}).get('QTime', None)
         self.grouped = decoded.get('grouped', {})
         self.nextCursorMark = decoded.get('nextCursorMark', None)
+
+    def __bool__(self):
+        return self.hits > 0
 
     def __len__(self):
         return len(self.docs)
