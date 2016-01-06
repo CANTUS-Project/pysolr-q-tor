@@ -2,8 +2,6 @@
 
 set -e
 
-SOLR_VERSION=4.10.4
-
 cd $(dirname $0)
 
 export TEST_ROOT=$(pwd)

@@ -7,6 +7,9 @@ python:
   - "3.5"
   # - "pypy"
 
+env:
+  - SOLR_VERSION=4.10.4
+
 cache:
   apt: true
   pip: true

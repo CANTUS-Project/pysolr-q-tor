@@ -2,6 +2,7 @@
 
 from __future__ import absolute_import, print_function, unicode_literals
 
+from os import environ
 import subprocess
 import sys
 import time
@@ -12,6 +13,10 @@ RETRY_EVERY = 1  # seconds
 RETRY_DURATION = 60  # seconds
 
 KEEP_WAITING_STATII = (503,)  # if Solr returns one of these HTTP status codes, keep waiting for it
+
+# if there's no default SOLR_VERSION set (by Travis-CI) then set it here
+if 'SOLR_VERSION' not in environ:
+    environ['SOLR_VERSION'] = '4.10.4'
 
 
 def start_solr():
