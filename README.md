@@ -5,6 +5,7 @@ pysolr-tornado
 via Tornado coroutines.
 
 [![Build Status](https://img.shields.io/travis/CANTUS-Project/pysolr-tornado/master.svg?style=flat-square)](https://travis-ci.org/CANTUS-Project/pysolr-tornado)
+[![Code Issues](https://www.quantifiedcode.com/api/v1/project/e650bacf59a0427fa3388771f34a7df4/badge.svg)](https://www.quantifiedcode.com/app/project/e650bacf59a0427fa3388771f34a7df4)
 
 This project is a fork of `pysolr`, hosted on GitHub at https://github.com/toastdriven/pysolr. We
 offer a few minor improvements over `pysolr`, but we attempt to keep the APIs identical. However,
