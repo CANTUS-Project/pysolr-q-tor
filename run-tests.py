@@ -9,7 +9,7 @@ import time
 from tornado import httpclient
 
 RETRY_EVERY = 1  # seconds
-RETRY_DURATION = 30  # seconds
+RETRY_DURATION = 60  # seconds
 
 KEEP_WAITING_STATII = (503,)  # if Solr returns one of these HTTP status codes, keep waiting for it
 
