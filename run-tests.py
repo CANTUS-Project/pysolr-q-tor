@@ -15,9 +15,9 @@ KEEP_WAITING_STATII = (503,)  # if Solr returns one of these HTTP status codes, 
 
 
 def start_solr():
-    solr_proc = subprocess.Popen("./start-solr-test-server.sh",
-                                 stdout=open("test-solr.stdout.log", "wb"),
-                                 stderr=open("test-solr.stderr.log", "wb"))
+    solr_proc = subprocess.Popen("./start-solr-test-server.sh")#,
+                                #  stdout=open("test-solr.stdout.log", "wb"),
+                                #  stderr=open("test-solr.stderr.log", "wb"))
 
     solr_retries = 0
     print('Waiting for Solr to start...')
