@@ -1,0 +1,4 @@
+- Version 4.0.0
+    - Backward incompatible "Results" class. This should be given the response from Solr directly,
+      and will create all its attributes automatically. Consult the class documentation for more
+      information.
