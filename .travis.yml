@@ -9,6 +9,8 @@ python:
 
 env:
   - SOLR_VERSION=4.10.4
+  - SOLR_VERSION=5.3.1
+  - SOLR_VERSION=5.4.0
 
 cache:
   apt: true
