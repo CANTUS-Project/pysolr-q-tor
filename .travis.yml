@@ -22,5 +22,4 @@ install:
   - "pip install ."
 
 script:
-  - "bash start-solr-test-server.sh"
-  # - python run-tests.py
+  - python run-tests.py
