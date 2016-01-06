@@ -1,4 +1,8 @@
-Primaries:
+pysolr-tornado:
+
+* Christopher Antila
+
+Upstream Primaries:
 
 * Joseph Kocherhans
 * Daniel Lindsley
@@ -6,7 +10,7 @@ Primaries:
 * Chris Adams
 
 
-Contributors:
+Upstream Contributors:
 
 * initcrash for a patch regarding datetime formatting.
 * maciekp.lists for a patch correcting URL construction.
