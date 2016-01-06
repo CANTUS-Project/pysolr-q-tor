@@ -18,7 +18,8 @@ queries the server and returns results based on the query. Originally written by
 Status
 ======
 
-Nothing on Travis or Coveralls yet.
+.. image:: https://img.shields.io/travis/CANTUS-Project/pysolr-tornado/master.svg?style=flat-square
+    :target: https://travis-ci.org/CANTUS-Project/pysolr-tornado
 
 
 Features
