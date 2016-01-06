@@ -25,7 +25,9 @@ if [ -f ${SOLR_ARCHIVE} ]; then
 fi
 
 if [ ! -f ${SOLR_ARCHIVE} ]; then
-    SOLR_DOWNLOAD_URL=$(python get-solr-download-url.py $SOLR_VERSION)
+    # SOLR_DOWNLOAD_URL=$(python get-solr-download-url.py $SOLR_VERSION)
+    # TODO: see if you can make the URL-getter work again
+    SOLR_DOWNLOAD_URL="https://archive.apache.org/dist/lucene/solr/${SOLR_VERSION}/solr-${SOLR_VERSION}.tgz"
     curl -Lo $SOLR_ARCHIVE ${SOLR_DOWNLOAD_URL} || (echo "Unable to download ${SOLR_DOWNLOAD_URL}"; exit 2)
 fi
 
