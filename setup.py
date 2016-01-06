@@ -9,7 +9,7 @@ import pysolrtornado  # for "author" and "version"
 setup(
     name='pysolr-tornado',
     version='.'.join(map(str, pysolrtornado.__version__)),
-    description='Lightweight python wrapper for Apache Solr. Based on "pysolr" but with Tornado!',
+    description='A library to access Solr via Tornado coroutines.',
     author=pysolrtornado.__author__,
     author_email='christopher@antila.ca',
     long_description=open('README.rst', 'r').read(),
@@ -23,13 +23,15 @@ setup(
         'Operating System :: OS Independent',
         'Programming Language :: Python',
         'Topic :: Internet :: WWW/HTTP :: Indexing/Search',
-        'Programming Language :: Python :: 2',
-        'Programming Language :: Python :: 3',
+        'Programming Language :: Python :: 3.3',
+        'Programming Language :: Python :: 3.4',
+        'Programming Language :: Python :: 3.5',
+        'Programming Language :: Python :: Implementation :: CPython',
     ],
     url='https://github.com/CANTUS-Project/pysolr-tornado/',
     license='BSD',
     install_requires=[
-        'tornado>=4.0'
+        'tornado>=4.0,<5'
     ],
     extras_require={
         'tomcat': [
