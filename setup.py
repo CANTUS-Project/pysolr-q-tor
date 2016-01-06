@@ -3,8 +3,6 @@ try:
 except ImportError:
     from distutils.core import setup
 
-import pysolrtornado  # for "author" and "version"
-
 
 LONG_DESCRIPTION = '''
 ``pysolr-tornado`` is a Python library providing access to [Apache Solr](https://lucene.apache.org/solr/)
@@ -38,9 +36,9 @@ but it broke our client application and it may break yours too.
 
 setup(
     name='pysolr-tornado',
-    version='.'.join(map(str, pysolrtornado.__version__)),
+    version='4.0.0a2',
     description='A library to access Solr via Tornado coroutines.',
-    author=pysolrtornado.__author__,
+    author='Daniel Lindsley, Joseph Kocherhans, Jacob Kaplan-Moss, Christopher Antila',
     author_email='christopher@antila.ca',
     long_description=LONG_DESCRIPTION,
     py_modules=[
