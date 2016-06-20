@@ -1,16 +1,15 @@
 sudo: false
 language: python
 python:
-  # - "2.7"
   - "3.3"
   - "3.4"
   - "3.5"
-  # - "pypy"
 
 env:
   - SOLR_VERSION=4.10.4
   - SOLR_VERSION=5.3.1
   - SOLR_VERSION=5.4.0
+  - SOLR_VERSION=5.5.1
 
 cache:
   apt: true
