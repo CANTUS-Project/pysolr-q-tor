@@ -36,7 +36,7 @@ but it broke our client application and it may break yours too.
 
 setup(
     name='pysolr-tornado',
-    version='4.0.0a2',
+    version='4.0.1',
     description='A library to access Solr via Tornado coroutines.',
     author='Daniel Lindsley, Joseph Kocherhans, Jacob Kaplan-Moss, Christopher Antila',
     author_email='christopher@antila.ca',
